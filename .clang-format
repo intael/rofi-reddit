@@ -1,0 +1,55 @@
+# Basic C99 clang-format config
+
+# Set language and standard
+Language: C
+
+BasedOnStyle: LLVM
+
+# Use 4 spaces for indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# Align trailing comments
+AlignTrailingComments: true
+
+# Put braces on the same line as control statements (K&R style)
+BraceWrapping:
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  BeforeCatch: false
+  BeforeElse: false
+  IndentBraces: false
+
+# Keep function declarations and definitions on a single line if possible
+AllowShortFunctionsOnASingleLine: InlineOnly
+
+# Keep blocks (like for loops) on a single line if they fit
+AllowShortBlocksOnASingleLine: true
+
+# Space before function parameters
+SpaceBeforeParens: ControlStatements
+
+# Include sorting - leave as is (none), or use `case-sensitive`
+SortIncludes: true
+
+ColumnLimit: 100
+
+# Align pointer/reference to type name (C99 style)
+PointerAlignment: Left
+
+# Break before binary operators (common in C99)
+BreakBeforeBinaryOperators: None
+
+# Break string literals if they exceed the column limit
+BreakStringLiterals: true
+
+# Align consecutive assignments and declarations
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+

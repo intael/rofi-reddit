@@ -7,26 +7,30 @@ To run this you need an up to date checkout of rofi git installed.
 Run rofi like:
 
 ```bash
-    rofi -show myplugin -modi myplugin 
+rofi -show rofi_reddit -modi rofi_reddit
 ```
 
-## Compilation
+## Reddit app stuff
 
-### Dependencies
+How to create app: https://business.reddithelp.com/helpcenter/s/article/Create-a-Reddit-Application
+Your app: https://www.reddit.com/prefs/apps
 
-| Dependency | Version         |
-|------------|-----------------|
-| rofi 	     | 1.4 (or git)	   |
+### Reddit api
 
-### Installation
-
-**Rofi-plugin-template** uses autotools as build system. If installing from git, the following steps should install it:
-
-```bash
-$ autoreconf -i
-$ mkdir build
-$ cd build/
-$ ../configure
-$ make
-$ make install
+Create the app and get the access token like this:
+```shell
+curl --request POST \
+  --url https://www.reddit.com/api/v1/access_token \
+  -A '<client-name>' \
+  -u '<client-id>:<client-secret>' \
+  --header 'content-type: application/x-www-form-urlencoded' \
+  --data scope=read \
+  --data grant_type=client_credentials
 ```
+
+Request with auth bearer
+```shell
+curl --request GET \
+  --url https://oauth.reddit.com/r/python/hot \
+  --header 'Authorization: Bearer <access-token>'
+`
