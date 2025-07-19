@@ -3,26 +3,15 @@ project('rofi-reddit', 'c', version: '0.1.0')
 
 add_project_arguments('-DUNITY_OUTPUT_COLOR=1', language: 'c')
 
-rofi_dependency = dependency('rofi')
-libcurl_dependency = dependency('libcurl')
-
-cmake = import('cmake')
-opt_var = cmake.subproject_options()
-opt_var.add_cmake_defines({'CMAKE_POLICY_VERSION_MINIMUM': '3.5'})
-
-jansson_proj = cmake.subproject('jansson', options: opt_var)
-jansson_dependency = jansson_proj.dependency('jansson')
-
-glib_dependency = dependency('glib-2.0')
-gmodule_dependency = dependency('gmodule-2.0')
-
-tomlc17_proj = subproject('tomlc17')
-tomlc17_dependency = tomlc17_proj.get_variable('tomlc17Dependency')
+glib_dependency = dependency('glib-2.0', fallback: ['glib'])
+rofi_dependency = dependency('rofi', allow_fallback: true)
+libcurl_dependency = dependency('libcurl', fallback: ['curl'], version: ['>=8.0', '<9.0'])
+jansson_dependency = dependency('jansson', allow_fallback: true, version: ['>=2.4', '<3.0'])
+tomlc17_dependency = subproject('tomlc17').get_variable('tomlc17_dep')
 
 
 deps = [
   glib_dependency,
-  gmodule_dependency,
   tomlc17_dependency,
   jansson_dependency,
   libcurl_dependency,
@@ -66,7 +55,6 @@ cmock_dep = cmock.get_variable('cmock_dep')
 curl_include = libcurl_dependency.get_variable(pkgconfig: 'includedir') / 'curl'
 
 ruby_bin = find_program('ruby', version: ['>=2.7', '<3.0'])
-cmock_create_mock = 'subprojects' / 'CMock' / 'lib' / 'cmock.rb'
 mocks_dir = meson.project_source_root() / 'tests' / 'mocks'
 
 curl_cmock_config_path = mocks_dir / 'curl' / 'curl_cmock_config.yaml'

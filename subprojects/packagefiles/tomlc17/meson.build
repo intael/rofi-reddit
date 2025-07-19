@@ -6,7 +6,7 @@ tomlc17 = static_library(
   include_directories: include_directories('src')
 )
 
-tomlc17Dependency = declare_dependency(
+tomlc17_dep = declare_dependency(
   link_with: tomlc17,
   include_directories: include_directories('src')
 )

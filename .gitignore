@@ -2,9 +2,10 @@ build/
 .cache/
 src/.deps/
 compile_commands.json
+
 subprojects/tomlc17/
 subprojects/CMock/
-subprojects/jansson/
+subprojects/jansson-*/
 
 tests/mocks/mock_*
 tests/mocks/curl/mock_*
