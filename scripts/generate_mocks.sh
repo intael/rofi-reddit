@@ -3,7 +3,7 @@
 header_file=$(basename "$2")
 header_name=${header_file%.*}
 c_file="$header_name.c"
-$4 subprojects/CMock/lib/cmock.rb -o$1 $2
+$4 ../subprojects/CMock/lib/cmock.rb -o$1 $2
 
 if [ $? -eq 0 ]; then
 	mocks_path="$MESON_BUILD_ROOT/mocks"

@@ -124,7 +124,7 @@ static struct curl_slist* user_agent_header(const RedditApp* const app) {
     return headers;
 }
 
-static json_t* deserialize_json_response(struct response* resp) {
+static json_t* deserialize_json_response(const struct response* resp) {
     json_error_t error;
     json_t* root = json_loads(resp->buffer, 0, &error);
     if (!root) {
@@ -202,11 +202,12 @@ const RedditAccessToken* fetch_reddit_access_token_from_api(const RedditApp* con
     curl_slist_free_all(ua_header);
 
     long* resp_status = get_response_status(app->http_client);
+    fprintf(stderr, "Reddit access token request status code: %ld\n", *resp_status);
     const RedditAccessToken* reddit_token = NULL;
     if (status == CURLE_OK && *(resp_status) == 200) {
         reddit_token = deserialize_access_token(response_buffer);
     } else {
-        fprintf(stderr, "Reddit access token request failed or retured non-200 code.\n");
+        fprintf(stderr, "Reddit access token request failed or returned non-200 code.\n");
     }
     free_response(response_buffer);
     free(resp_status);
