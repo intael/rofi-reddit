@@ -2,7 +2,6 @@ cmock = subproject('CMock')
 unity_dep = cmock.get_variable('unity_dep')
 cmock_dep = cmock.get_variable('cmock_dep')
 
-curl_include = libcurl_dependency.get_variable(pkgconfig: 'includedir') / 'curl'
 
 ruby_bin = find_program('ruby', version: ['>=2.7', '<3.0'])
 mocks_dir = meson.project_source_root() / 'tests' / 'mocks'
@@ -10,8 +9,11 @@ mocks_dir = meson.project_source_root() / 'tests' / 'mocks'
 curl_cmock_config_path = mocks_dir / 'curl' / 'curl_cmock_config.yaml'
 curl_wrappers_cmock_config_path = mocks_dir / 'curl_wrappers_cmock_config.yaml'
 
+generate_mocks_script = meson.project_source_root() / 'scripts' / 'generate_mocks.sh'
+
+curl_include = libcurl_dependency.get_variable(pkgconfig: 'includedir') / 'curl'
 curl_easy_mocks = run_command(
-  meson.project_source_root() / 'scripts' / 'generate_mocks.sh',
+  generate_mocks_script,
   curl_cmock_config_path,
   curl_include / 'easy.h',
   mocks_dir / 'curl',
@@ -22,7 +24,7 @@ curl_easy_mocks = run_command(
 )
 
 curl_wrapper_mocks = run_command(
-  meson.project_source_root() / 'scripts' / 'generate_mocks.sh',
+  generate_mocks_script,
   curl_wrappers_cmock_config_path,
   meson.project_source_root() / 'src' / 'curl_wrappers.h',
   mocks_dir,
@@ -51,9 +53,10 @@ fixtures_dep = declare_dependency(
 
 test_env = ['LC_ALL=C']
 
+# some src files need to be recompiled here for the test because of mocking linking shenanigans
 test_access_token_fetch_exec = executable(
-  'rofi-reddit-unit',
-  ['fixtures.c', 'test_reddit.c', '../src/reddit.c', '../src/memory.c'],
+  'access-token-fetch-tests',
+  ['fixtures.c', 'test_access_token_fetch.c', '../src/reddit.c', '../src/memory.c'],
   dependencies: [unity_dep, fixtures_dep] + deps,
   link_with: [mocks],
   include_directories: ['mocks', src_inc, project_inc],
@@ -74,5 +77,3 @@ executable(
   link_with: [rofi_reddit_shared_lib],
   include_directories: [src_inc],
 )
-
-

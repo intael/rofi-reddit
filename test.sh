@@ -6,4 +6,4 @@ meson setup build --reconfigure
 
 cp build/compile_commands.json .
 
-ninja -C build test
+meson test -C build
