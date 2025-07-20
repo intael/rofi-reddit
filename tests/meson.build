@@ -45,19 +45,13 @@ mocks = static_library(
   dependencies: [cmock_dep, unity_dep, jansson_dependency],
 )
 
-fixtures_dep = declare_dependency(
-  sources: ['fixtures.c'],
-  link_with: [rofi_reddit_shared_lib],
-  dependencies: [libcurl_dependency],
-)
-
 test_env = ['LC_ALL=C']
 
 # some src files need to be recompiled here for the test because of mocking linking shenanigans
 test_access_token_fetch_exec = executable(
   'access-token-fetch-tests',
   ['fixtures.c', 'test_access_token_fetch.c', '../src/reddit.c', '../src/memory.c'],
-  dependencies: [unity_dep, fixtures_dep] + deps,
+  dependencies: [unity_dep] + deps,
   link_with: [mocks],
   include_directories: ['mocks', src_inc, project_inc],
 )

@@ -15,7 +15,7 @@
 #include <tomlc17.h>
 #include <unistd.h>
 
-static const char* const ACCESS_TOKEN_ENDPOINT = "https://www.reddit.com/api/v1/access_token";
+static const char* const REDDIT_HOST = "www.reddit.com";
 static const char* const REDDIT_API_HOST = "oauth.reddit.com";
 
 static const uint16_t* const ACCESS_TOKEN_MAX_SIZE = &(const uint16_t){1024};
@@ -185,12 +185,19 @@ const RedditAccessToken* fetch_reddit_access_token_from_api(const RedditApp* con
     struct response* response_buffer = new_response();
     struct curl_slist* ua_header = user_agent_header(app);
 
+    CURL* url = curl_url();
+    curl_url_set(url, CURLUPART_SCHEME, "https", 0);
+    curl_url_set(url, CURLUPART_HOST, REDDIT_HOST, 0);
+    curl_url_set(url, CURLUPART_PATH, "api/v1/access_token/", 0);
+    char* url_str = NULL;
+    curl_url_get(url, CURLUPART_URL, &url_str, 0);
+
     curl_easy_setopt(app->http_client, CURLOPT_POST, 1L);
     curl_easy_setopt(app->http_client, CURLOPT_USERNAME, app->auth->client_id);
     curl_easy_setopt(app->http_client, CURLOPT_PASSWORD, app->auth->client_secret);
     curl_easy_setopt(app->http_client, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(app->http_client, CURLOPT_WRITEDATA, response_buffer);
-    curl_easy_setopt(app->http_client, CURLOPT_URL, ACCESS_TOKEN_ENDPOINT);
+    curl_easy_setopt(app->http_client, CURLOPT_URL, url_str);
     curl_easy_setopt(app->http_client, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     curl_easy_setopt(app->http_client, CURLOPT_HTTPHEADER, ua_header);
     curl_easy_setopt(app->http_client, CURLOPT_POSTFIELDS,
@@ -211,6 +218,8 @@ const RedditAccessToken* fetch_reddit_access_token_from_api(const RedditApp* con
     }
     free_response(response_buffer);
     free(resp_status);
+    curl_url_cleanup(url);
+    curl_free(url_str);
     return reddit_token;
 }
 
@@ -266,20 +275,19 @@ const struct listings* fetch_hot_listings(const RedditApp* app, const RedditAcce
     snprintf(url_path, 100, "r/%s/hot/", subreddit);
     curl_url_set(url, CURLUPART_PATH, url_path, 0);
     curl_url_set(url, CURLUPART_QUERY, "limit=1", 0);
+    char* url_str = NULL;
+    curl_url_get(url, CURLUPART_URL, &url_str, 0);
 
     curl_easy_setopt(app->http_client, CURLOPT_POST, 0L);
     curl_easy_setopt(app->http_client, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(app->http_client, CURLOPT_WRITEDATA, response_buffer);
-    char* url_str = NULL;
-    curl_url_get(url, CURLUPART_URL, &url_str, 0);
     curl_easy_setopt(app->http_client, CURLOPT_URL, url_str);
     curl_easy_setopt(app->http_client, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
     curl_easy_setopt(app->http_client, CURLOPT_XOAUTH2_BEARER, token->token);
     curl_easy_setopt(app->http_client, CURLOPT_HTTPHEADER, ua_header);
     // curl_easy_setopt(app->http_client, CURLOPT_VERBOSE, 1L);
 
-    printf("Full URL: %s\n", url_str);
-    curl_easy_perform(app->http_client);
+    CURLcode status = curl_easy_perform(app->http_client);
 
     curl_slist_free_all(ua_header);
     curl_url_cleanup(url);
@@ -290,6 +298,13 @@ const struct listings* fetch_hot_listings(const RedditApp* app, const RedditAcce
     // fprintf(stdout, "%s\n", json_dumps(json_object_get(response_payload, "data"),
     // JSON_INDENT(2)));
 
+    const struct listings* listings = NULL;
+    if (status == CURLE_OK && *(resp_status) == 200) {
+        listings = deserialize_listings(response_buffer);
+    } else {
+        fprintf(stderr, "Reddit hot listings request failed or returned non-200 code.\n");
+    }
+
     free(resp_status);
-    return deserialize_listings(response_buffer);
+    return listings;
 }
