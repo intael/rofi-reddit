@@ -1,9 +1,8 @@
 #include "curl/mock_easy.h"
+#include "fixtures.h"
 #include "mock_curl_wrappers.h"
 #include "reddit.h"
-#include "fixtures.h"
 #include "unity.h"
-#include <stdio.h>
 
 static RedditApp* app;
 

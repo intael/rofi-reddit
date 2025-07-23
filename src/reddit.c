@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <tomlc17.h>
 #include <unistd.h>
 
@@ -33,7 +34,11 @@ const struct rofi_reddit_paths* new_rofi_reddit_paths() {
     paths->config_path = g_build_filename(paths->dir_path, "config.toml", NULL);
     paths->config_path_exists = access(paths->config_path, F_OK) == 0;
     paths->access_token_cache_path = g_build_filename(paths->dir_path, "access_token", NULL);
-    paths->access_token_cache_exists = access(paths->access_token_cache_path, F_OK) == 0;
+    struct stat st;
+    // file exists, process has read permissions, and file is nonempty
+    paths->access_token_cache_exists = stat(paths->access_token_cache_path, &st) == 0 &&
+                                       access(paths->access_token_cache_path, F_OK) == 0 &&
+                                       st.st_size > 0;
     return paths;
 }
 
@@ -223,24 +228,22 @@ const RedditAccessToken* fetch_reddit_access_token_from_api(const RedditApp* con
     return reddit_token;
 }
 
-static void cache_token(const RedditAccessToken* token, const struct rofi_reddit_paths* paths) {
-    FILE* const CACHE = fopen(paths->access_token_cache_path, "w+");
-    fputs(token->token, CACHE);
+RedditAccessToken* fetch_and_cache_token(const RedditApp* const app,
+                                         const struct rofi_reddit_paths* paths) {
+    const RedditAccessToken* token = fetch_reddit_access_token_from_api(app);
+    if (token) {
+        fprintf(stdout, "Obtained access token from API of size: %zu. Caching to %s\n",
+                strlen(token->token), paths->access_token_cache_path);
+        FILE* const CACHE = fopen(paths->access_token_cache_path, "w+");
+        fputs(token->token, CACHE);
+        return token;
+    }
 }
 
 const RedditAccessToken* new_reddit_access_token(const RedditApp* const app,
                                                  const struct rofi_reddit_paths* paths) {
     const RedditAccessToken* reddit_token = NULL;
-    if (!paths->access_token_cache_exists) {
-        fprintf(stdout, "Access token cache miss. Fetching from API.\n");
-        reddit_token = fetch_reddit_access_token_from_api(app);
-        if (reddit_token) {
-            fprintf(stdout, "Obtained access token from API of size: %zu. Caching to %s\n",
-                    strlen(reddit_token->token), paths->access_token_cache_path);
-            cache_token(reddit_token, paths);
-        }
-    }
-    if (!reddit_token && access(paths->access_token_cache_path, R_OK) == 0) {
+    if (paths->access_token_cache_exists) {
         FILE* const CACHE = fopen(paths->access_token_cache_path, "r");
         char* buffer = malloc(*ACCESS_TOKEN_MAX_SIZE);
         fgets(buffer, *ACCESS_TOKEN_MAX_SIZE, CACHE);
@@ -249,6 +252,9 @@ const RedditAccessToken* new_reddit_access_token(const RedditApp* const app,
         reddit_token = cached_token;
         fprintf(stdout, "Access token cache hit.\n");
         fclose(CACHE);
+    } else {
+        fprintf(stdout, "Access token cache miss. Fetching from API.\n");
+        reddit_token = fetch_and_cache_token(app, paths);
     }
     if (!reddit_token)
         fprintf(stderr, "Failed to obtain Reddit access token.\n");
@@ -262,8 +268,8 @@ void free_reddit_access_token(const RedditAccessToken* token) {
     free((void*)token);
 }
 
-const struct listings* fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token,
-                                          const char* subreddit) {
+const struct reddit_api_response*
+fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token, const char* subreddit) {
     struct response* response_buffer = new_response();
     struct curl_slist* ua_header = user_agent_header(app);
 
@@ -274,7 +280,7 @@ const struct listings* fetch_hot_listings(const RedditApp* app, const RedditAcce
     char url_path[100];
     snprintf(url_path, 100, "r/%s/hot/", subreddit);
     curl_url_set(url, CURLUPART_PATH, url_path, 0);
-    curl_url_set(url, CURLUPART_QUERY, "limit=1", 0);
+    curl_url_set(url, CURLUPART_QUERY, "limit=15", 0); // TODO: make configurable
     char* url_str = NULL;
     curl_url_get(url, CURLUPART_URL, &url_str, 0);
 
@@ -304,7 +310,20 @@ const struct listings* fetch_hot_listings(const RedditApp* app, const RedditAcce
     } else {
         fprintf(stderr, "Reddit hot listings request failed or returned non-200 code.\n");
     }
+    return new_reddit_api_response((void*)listings, resp_status);
+}
 
-    free(resp_status);
-    return listings;
+struct reddit_api_response* new_reddit_api_response(void* data, long* status_code) {
+    struct reddit_api_response* response =
+        (struct reddit_api_response*)LOG_ERR_MALLOC(struct reddit_api_response, 1);
+    response->http_status_code = status_code;
+    response->data = data;
+    return response;
+}
+
+void free_reddit_api_response(const struct reddit_api_response* response) {
+    if (!response)
+        return;
+    free(response->data);
+    free((void*)response);
 }

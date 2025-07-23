@@ -2,7 +2,6 @@ cmock = subproject('CMock')
 unity_dep = cmock.get_variable('unity_dep')
 cmock_dep = cmock.get_variable('cmock_dep')
 
-
 ruby_bin = find_program('ruby', version: ['>=2.7', '<3.0'])
 mocks_dir = meson.project_source_root() / 'tests' / 'mocks'
 
@@ -36,7 +35,7 @@ curl_wrapper_mocks = run_command(
 curl_easy_mock_sources = curl_easy_mocks.stdout().split('\n')[1].split(' ')
 curl_wrappers_easy_mock_sources = curl_wrapper_mocks.stdout().split('\n')[1].split(' ')
 mock_sources = curl_easy_mock_sources + curl_wrappers_easy_mock_sources
-message('Mock sources to generate: ', mock_sources)
+message('Mock sources to build: ', mock_sources)
 
 mocks = static_library(
   'mocks',
@@ -47,27 +46,35 @@ mocks = static_library(
 
 test_env = ['LC_ALL=C']
 
-# some src files need to be recompiled here for the test because of mocking linking shenanigans
-test_access_token_fetch_exec = executable(
-  'access-token-fetch-tests',
-  ['fixtures.c', 'test_access_token_fetch.c', '../src/reddit.c', '../src/memory.c'],
+unit_test_access_token_fetch_exec = executable(
+  'unit-test-access-token',
+  ['fixtures.c', 'test_access_token_fetch.c'],
+  objects: rofi_reddit_shared_lib.extract_objects('src/reddit.c','src/memory.c'),
   dependencies: [unity_dep] + deps,
   link_with: [mocks],
   include_directories: ['mocks', src_inc, project_inc],
 )
 
 test(
-  'test_access_token_fetch',
-  test_access_token_fetch_exec,
+  'unit_test_access_token',
+  unit_test_access_token_fetch_exec,
   env: test_env,
   protocol: 'exitcode',
   workdir: meson.current_source_dir(),
 )
 
-executable(
-  'rofi-reddit-test-main',
-  ['test_main.c'],
+integration_test_access_token_exec = executable(
+  'integration-test-access-token',
+  ['integration_test_access_token.c'],
+  objects: rofi_reddit_shared_lib.extract_objects('src/reddit.c', 'src/curl_wrappers.c', 'src/memory.c'),
   dependencies: deps,
-  link_with: [rofi_reddit_shared_lib],
-  include_directories: [src_inc],
+  include_directories: [src_inc, project_inc],
+)
+
+test(
+  'integration_test_access_token',
+  integration_test_access_token_exec,
+  env: test_env,
+  protocol: 'exitcode',
+  workdir: meson.current_source_dir(),
 )

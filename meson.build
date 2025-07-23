@@ -13,7 +13,7 @@ deps = [
   tomlc17_dependency,
   jansson_dependency,
   libcurl_dependency,
-  rofi_dependency
+  rofi_dependency,
 ]
 
 main_sources = [
@@ -36,11 +36,12 @@ rofi_reddit_shared_lib = shared_library(
   meson.project_name(),
   main_sources,
   dependencies: deps,
-  install_dir: pluginsdir, 
+  install_dir: pluginsdir,
   name_prefix: '',
   install: true,
-  link_args: link_args
+  link_args: link_args,
 )
+message('rofi-reddit shared library: ', pluginsdir)
 
 project_inc = include_directories('.')
 src_inc = include_directories('src')
