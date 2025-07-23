@@ -6,6 +6,7 @@
 #include <curl/urlapi.h>
 #include <glib.h>
 #include <jansson.h>
+#include <pwd.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -40,30 +41,39 @@ static void free_app_auth(const struct app_auth* auth) {
 }
 
 const struct rofi_reddit_paths* new_rofi_reddit_paths() {
-    const char* home_path = getenv("HOME");
+    char* home_path = getenv("HOME");
     if (!home_path) {
-        fprintf(stderr, "HOME env variable is not available.");
-        return NULL;
+        home_path = getpwuid(getuid())->pw_dir;
+    }
+    char* plugin_config_dir = g_build_filename(home_path, ".config", "rofi_reddit", NULL);
+    if (access(plugin_config_dir, F_OK) != 0) {
+        fprintf(stderr, "Rofi Reddit config directory does not exist. Aborting.\n");
+        free(plugin_config_dir);
+        exit(EXIT_FAILURE);
+    }
+    char* config_file_path = g_build_filename(plugin_config_dir, "config.toml", NULL);
+    if (access(config_file_path, F_OK) != 0) {
+        fprintf(stderr, "Rofi Reddit config file does not exist. Aborting.\n");
+        free(plugin_config_dir);
+        free(config_file_path);
+        exit(EXIT_FAILURE);
     }
     struct rofi_reddit_paths* paths =
         (struct rofi_reddit_paths*)malloc(sizeof(struct rofi_reddit_paths));
-    paths->dir_path = g_build_filename(home_path, ".config", "rofi_reddit", NULL);
-    paths->dir_exists = access(paths->dir_path, F_OK) == 0;
-    paths->config_path = g_build_filename(paths->dir_path, "config.toml", NULL);
-    paths->config_path_exists = access(paths->config_path, F_OK) == 0;
-    paths->access_token_cache_path = g_build_filename(paths->dir_path, "access_token", NULL);
+    paths->config_path = config_file_path;
+    paths->access_token_cache_path = g_build_filename(plugin_config_dir, "access_token", NULL);
     struct stat st;
     // file exists, process has read permissions, and file is nonempty
     paths->access_token_cache_exists = stat(paths->access_token_cache_path, &st) == 0 &&
-                                       access(paths->access_token_cache_path, F_OK) == 0 &&
+                                       access(paths->access_token_cache_path, R_OK) == 0 &&
                                        st.st_size > 0;
+    free(plugin_config_dir);
     return paths;
 }
 
 void free_rofi_reddit_paths(const struct rofi_reddit_paths* paths) {
     if (!paths)
         return;
-    free((void*)paths->dir_path);
     free((void*)paths->config_path);
     free((void*)paths->access_token_cache_path);
     free((void*)paths);
@@ -72,11 +82,7 @@ void free_rofi_reddit_paths(const struct rofi_reddit_paths* paths) {
 const struct rofi_reddit_cfg* new_rofi_reddit_cfg(const struct rofi_reddit_paths* paths) {
     struct rofi_reddit_cfg* cfg =
         (struct rofi_reddit_cfg*)LOG_ERR_MALLOC(struct rofi_reddit_cfg, 2);
-    if (!paths->config_path_exists) {
-        fprintf(stderr, "Could not find rofi_reddit config file at %s\n", paths->config_path);
-        return NULL;
-    }
-    if (access(paths->config_path, F_OK) == -1) {
+    if (access(paths->config_path, R_OK) != 0) {
         fprintf(stderr,
                 "Could not read rofi_reddit config file due to missing read permissions at %s\n",
                 paths->config_path);

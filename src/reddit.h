@@ -9,10 +9,7 @@
 #define _REDDIT_H
 
 struct rofi_reddit_paths {
-  const char *dir_path;
-  bool dir_exists;
   const char *config_path;
-  bool config_path_exists;
   const char *access_token_cache_path;
   bool access_token_cache_exists;
 };
