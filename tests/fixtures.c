@@ -6,10 +6,12 @@
 RedditApp* fake_app() {
     RedditApp* app = malloc(sizeof(RedditApp));
     struct app_auth* auth = malloc(sizeof(struct app_auth));
+    struct rofi_reddit_cfg* config = malloc(sizeof(struct rofi_reddit_cfg));
+    config->auth = auth;
     auth->client_name = "lol";
     auth->client_id = "id";
     auth->client_secret = "sicrit";
-    app->auth = auth;
+    app->config = config;
     app->http_client = curl_easy_init();
     return app;
 }

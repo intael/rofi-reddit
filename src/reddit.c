@@ -16,10 +16,28 @@
 #include <tomlc17.h>
 #include <unistd.h>
 
+static const char* const HTTPS_SCHEME = "https://";
 static const char* const REDDIT_HOST = "www.reddit.com";
 static const char* const REDDIT_API_HOST = "oauth.reddit.com";
 
 static const uint16_t* const ACCESS_TOKEN_MAX_SIZE = &(const uint16_t){1024};
+
+static const struct app_auth* new_app_auth(toml_result_t toml) {
+    struct app_auth* auth = (struct app_auth*)LOG_ERR_MALLOC(struct app_auth, 2);
+    auth->client_name = strdup(toml_seek(toml.toptab, "reddit.client_name").u.s);
+    auth->client_id = strdup(toml_seek(toml.toptab, "reddit.client_id").u.s);
+    auth->client_secret = strdup(toml_seek(toml.toptab, "reddit.client_secret").u.s);
+    return auth;
+}
+
+static void free_app_auth(const struct app_auth* auth) {
+    if (!auth)
+        return;
+    free((void*)auth->client_name);
+    free((void*)auth->client_id);
+    free((void*)auth->client_secret);
+    free((void*)auth);
+}
 
 const struct rofi_reddit_paths* new_rofi_reddit_paths() {
     const char* home_path = getenv("HOME");
@@ -70,30 +88,24 @@ const struct rofi_reddit_cfg* new_rofi_reddit_cfg(const struct rofi_reddit_paths
         free(cfg);
         return NULL;
     }
-    struct app_auth* auth = (struct app_auth*)LOG_ERR_MALLOC(struct app_auth, 2);
-    auth->client_name = strdup(toml_seek(parsed_toml.toptab, "reddit.client_name").u.s);
-    auth->client_id = strdup(toml_seek(parsed_toml.toptab, "reddit.client_id").u.s);
-    auth->client_secret = strdup(toml_seek(parsed_toml.toptab, "reddit.client_secret").u.s);
+    const struct app_auth* auth = new_app_auth(parsed_toml);
     toml_free(parsed_toml);
     cfg->auth = auth;
+    cfg->paths = paths;
     return cfg;
 }
 
 void free_rofi_reddit_cfg(const struct rofi_reddit_cfg* cfg) {
     if (!cfg)
         return;
-    if (cfg->auth) {
-        free((void*)cfg->auth->client_name);
-        free((void*)cfg->auth->client_id);
-        free((void*)cfg->auth->client_secret);
-        free((void*)cfg->auth);
-    }
+    free_app_auth(cfg->auth);
+    free_rofi_reddit_paths(cfg->paths);
     free((void*)cfg);
 }
 
 const RedditApp* new_reddit_app(const struct rofi_reddit_cfg* config) {
     RedditApp* app = (RedditApp*)LOG_ERR_MALLOC(RedditApp, 1);
-    app->auth = config->auth;
+    app->config = config;
     app->http_client = curl_easy_init();
     if (!app->http_client) {
         fprintf(stderr, "Failed to initialize CURL.\n");
@@ -106,6 +118,7 @@ void free_reddit_app(RedditApp* app) {
     if (!app)
         return;
     curl_easy_cleanup(app->http_client);
+    free_rofi_reddit_cfg(app->config);
     free(app);
 }
 
@@ -122,9 +135,9 @@ static size_t write_callback(char* buffer, size_t chunks, size_t chunk_size, voi
 
 static struct curl_slist* user_agent_header(const RedditApp* const app) {
     const char* ua_header_key = "User-Agent";
-    size_t header_size = strlen(ua_header_key) + strlen(app->auth->client_name) + 1;
+    size_t header_size = strlen(ua_header_key) + strlen(app->config->auth->client_name) + 1;
     char* ua_header = (char*)LOG_ERR_MALLOC(char, header_size);
-    snprintf(ua_header, header_size, "%s: %s", ua_header_key, app->auth->client_name);
+    snprintf(ua_header, header_size, "%s: %s", ua_header_key, app->config->auth->client_name);
     struct curl_slist* headers = curl_slist_append(NULL, ua_header);
     return headers;
 }
@@ -163,6 +176,11 @@ static const struct listings* deserialize_listings(const struct response* resp) 
             struct listing* item = (struct listing*)LOG_ERR_MALLOC(struct listing, 1);
             item->title = strdup(json_string_value(json_object_get(data, "title")));
             item->selftext = strdup(json_string_value(json_object_get(data, "selftext")));
+            char* permalink_path = strdup(json_string_value(json_object_get(data, "permalink")));
+            size_t len = strlen(HTTPS_SCHEME) + strlen(REDDIT_HOST) + strlen(permalink_path) + 1;
+            char* permalink = LOG_ERR_MALLOC(char, len);
+            snprintf(permalink, len, "%s%s%s", HTTPS_SCHEME, REDDIT_HOST, permalink_path);
+            item->permalink = permalink;
             item->ups = (uint32_t)json_integer_value(json_object_get(data, "ups"));
             items[i] = *item;
             free(item);
@@ -175,12 +193,19 @@ static const struct listings* deserialize_listings(const struct response* resp) 
     return NULL;
 }
 
+void free_listing(const struct listing* listing) {
+    if (!listing)
+        return;
+    free(listing->title);
+    free(listing->selftext);
+    free(listing->permalink);
+}
+
 void free_listings(const struct listings* listings) {
     if (!listings)
         return;
     for (size_t i = 0; i < listings->count; i++) {
-        free((void*)listings->items[i].title);
-        free((void*)listings->items[i].selftext);
+        free_listing(&listings->items[i]);
     }
     free((void*)listings->items);
     free((void*)listings);
@@ -198,8 +223,8 @@ const RedditAccessToken* fetch_reddit_access_token_from_api(const RedditApp* con
     curl_url_get(url, CURLUPART_URL, &url_str, 0);
 
     curl_easy_setopt(app->http_client, CURLOPT_POST, 1L);
-    curl_easy_setopt(app->http_client, CURLOPT_USERNAME, app->auth->client_id);
-    curl_easy_setopt(app->http_client, CURLOPT_PASSWORD, app->auth->client_secret);
+    curl_easy_setopt(app->http_client, CURLOPT_USERNAME, app->config->auth->client_id);
+    curl_easy_setopt(app->http_client, CURLOPT_PASSWORD, app->config->auth->client_secret);
     curl_easy_setopt(app->http_client, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(app->http_client, CURLOPT_WRITEDATA, response_buffer);
     curl_easy_setopt(app->http_client, CURLOPT_URL, url_str);
@@ -228,23 +253,21 @@ const RedditAccessToken* fetch_reddit_access_token_from_api(const RedditApp* con
     return reddit_token;
 }
 
-RedditAccessToken* fetch_and_cache_token(const RedditApp* const app,
-                                         const struct rofi_reddit_paths* paths) {
+RedditAccessToken* fetch_and_cache_token(const RedditApp* const app) {
     const RedditAccessToken* token = fetch_reddit_access_token_from_api(app);
     if (token) {
         fprintf(stdout, "Obtained access token from API of size: %zu. Caching to %s\n",
-                strlen(token->token), paths->access_token_cache_path);
-        FILE* const CACHE = fopen(paths->access_token_cache_path, "w+");
+                strlen(token->token), app->config->paths->access_token_cache_path);
+        FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "w+");
         fputs(token->token, CACHE);
         return token;
     }
 }
 
-const RedditAccessToken* new_reddit_access_token(const RedditApp* const app,
-                                                 const struct rofi_reddit_paths* paths) {
+const RedditAccessToken* new_reddit_access_token(const RedditApp* const app) {
     const RedditAccessToken* reddit_token = NULL;
-    if (paths->access_token_cache_exists) {
-        FILE* const CACHE = fopen(paths->access_token_cache_path, "r");
+    if (app->config->paths->access_token_cache_exists) {
+        FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "r");
         char* buffer = malloc(*ACCESS_TOKEN_MAX_SIZE);
         fgets(buffer, *ACCESS_TOKEN_MAX_SIZE, CACHE);
         RedditAccessToken* cached_token = malloc(sizeof(RedditAccessToken));
@@ -254,7 +277,7 @@ const RedditAccessToken* new_reddit_access_token(const RedditApp* const app,
         fclose(CACHE);
     } else {
         fprintf(stdout, "Access token cache miss. Fetching from API.\n");
-        reddit_token = fetch_and_cache_token(app, paths);
+        reddit_token = fetch_and_cache_token(app);
     }
     if (!reddit_token)
         fprintf(stderr, "Failed to obtain Reddit access token.\n");
@@ -291,6 +314,7 @@ fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token, const c
     curl_easy_setopt(app->http_client, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
     curl_easy_setopt(app->http_client, CURLOPT_XOAUTH2_BEARER, token->token);
     curl_easy_setopt(app->http_client, CURLOPT_HTTPHEADER, ua_header);
+    curl_easy_setopt(app->http_client, CURLOPT_FOLLOWLOCATION, 1L);
     // curl_easy_setopt(app->http_client, CURLOPT_VERBOSE, 1L);
 
     CURLcode status = curl_easy_perform(app->http_client);

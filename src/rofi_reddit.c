@@ -18,20 +18,17 @@ typedef struct {
 } RofiRedditModePrivateData;
 
 static int rofi_reddit_mode_init(Mode* sw) {
-    /**
-     * Called on startup when enabled (in modi list)
-     */
     if (mode_get_private_data(sw) == NULL) {
         const struct rofi_reddit_paths* paths = new_rofi_reddit_paths();
         const struct rofi_reddit_cfg* config = new_rofi_reddit_cfg(paths);
         const RedditApp* app = new_reddit_app(config);
         RofiRedditModePrivateData* pd = g_malloc0(sizeof(*pd));
         mode_set_private_data(sw, (void*)pd);
-        // free_rofi_reddit_cfg(config); // TODO: need to deepcopy auth when instantiating app
         pd->app = app;
-        pd->token = new_reddit_access_token(app, paths);
+        pd->token = new_reddit_access_token(app);
         pd->listings = NULL;
-        fprintf(stdout, "Initialized Rofi Reddit Mode with app: %s\n", app->auth->client_id);
+        fprintf(stdout, "Initialized Rofi Reddit Mode with app: %s\n",
+                app->config->auth->client_name);
     }
     return TRUE;
 }
@@ -50,11 +47,11 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
                                         unsigned int selected_line) {
     ModeMode retv = MODE_EXIT;
     RofiRedditModePrivateData* pd = (RofiRedditModePrivateData*)mode_get_private_data(sw);
-    fprintf(stdout, "Result!\n");
     if (mretv & MENU_NEXT) {
         retv = NEXT_DIALOG;
-    } else if (mretv & MENU_OK) { // TODO: spawn browser with open tab at url
+    } else if (mretv & MENU_OK) {
         if (pd->listings == NULL) {
+            // TODO: create valid empty state and reload with it here
             fprintf(stderr, "No listings available.\n");
             return MODE_EXIT;
         }
@@ -62,20 +59,21 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
             fprintf(stderr, "Selected line out of range.\n");
             return MODE_EXIT;
         }
-        const struct listing* selected_listing = &pd->listings->items[selected_line];
-        printf("Selected listing: %s\n", selected_listing->title);
-        printf("Ups: %u\n", selected_listing->ups);
+        char cmd[500];
+        snprintf(cmd, sizeof(cmd), "xdg-open '%s' &", pd->listings->items[selected_line].permalink);
+        system(cmd);
         retv = MODE_EXIT;
     } else if (mretv & MENU_PREVIOUS) {
         retv = PREVIOUS_DIALOG;
     } else if ((mretv & MENU_CUSTOM_INPUT)) {
         fprintf(stdout, "Fetching subreddit=%s listings.\n", *input);
         const struct reddit_api_response* response = fetch_hot_listings(pd->app, pd->token, *input);
-        if (*response->http_status_code != 200) { // TODO: handle 302 redirects
+        if (*response->http_status_code == 401 || *response->http_status_code == 403) {
             fprintf(stdout, "Access token is invalid or expired. Trying to fetch new one.\n");
-            pd->token = new_reddit_access_token(pd->app, new_rofi_reddit_paths());
+            pd->token = fetch_and_cache_token(pd->app);
+            response = fetch_hot_listings(pd->app, pd->token, *input);
         }
-        pd->listings = (struct listings*)fetch_hot_listings(pd->app, pd->token, *input)->data;
+        pd->listings = response->data;
         retv = RELOAD_DIALOG;
     }
     return retv;
@@ -87,14 +85,14 @@ static void rofi_reddit_mode_destroy(Mode* sw) {
         fprintf(stdout, "Destroying Rofi Reddit Mode.\n");
         free_reddit_access_token(pd->token);
         free_reddit_app(pd->app);
+        free_listings(pd->listings);
         g_free(pd);
         mode_set_private_data(sw, NULL);
     }
 }
 
-static char* _get_display_value(const Mode* sw, unsigned int selected_line,
-                                G_GNUC_UNUSED int* state, G_GNUC_UNUSED GList** attr_list,
-                                int get_entry) {
+static char* get_display_value(const Mode* sw, unsigned int selected_line, G_GNUC_UNUSED int* state,
+                               G_GNUC_UNUSED GList** attr_list, int get_entry) {
     RofiRedditModePrivateData* pd = (RofiRedditModePrivateData*)mode_get_private_data(sw);
     if (!pd->listings) {
         return g_strdup("OOPS!"); // TODO: implement history of subreddits
@@ -103,8 +101,7 @@ static char* _get_display_value(const Mode* sw, unsigned int selected_line,
         fprintf(stderr, "Selected line out of range.\n");
         return NULL;
     }
-    const struct listing* entry = &pd->listings->items[selected_line];
-    return g_strdup_printf("%s", entry->title);
+    return g_strdup_printf("%s", pd->listings->items[selected_line].title);
 }
 
 static int rofi_reddit_token_match(const Mode* sw, rofi_int_matcher** tokens, unsigned int index) {
@@ -124,7 +121,7 @@ Mode mode = {
     ._result = rofi_reddit_mode_result,
     ._destroy = rofi_reddit_mode_destroy,
     ._token_match = rofi_reddit_token_match,
-    ._get_display_value = _get_display_value,
+    ._get_display_value = get_display_value,
     ._get_message = get_message,
     ._get_completion = NULL,
     ._preprocess_input = NULL,

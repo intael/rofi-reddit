@@ -11,12 +11,12 @@ int main(void) {
 
     RedditApp* app = new_reddit_app(cfg);
 
-    const RedditAccessToken* token = new_reddit_access_token(app, paths);
+    const RedditAccessToken* token = new_reddit_access_token(app);
     struct reddit_api_response* response = fetch_hot_listings(app, token, "spainfire");
     fprintf(stdout, "Reddit API response status code: %ld\n", *response->http_status_code);
     if (*response->http_status_code != 200) {
         fprintf(stdout, "Access token is invalid or expired. Trying to fetch new one.\n");
-        fetch_and_cache_token(app, paths);
+        fetch_and_cache_token(app);
         free_rofi_reddit_paths(paths);
         paths = new_rofi_reddit_paths();
     }
@@ -31,8 +31,6 @@ int main(void) {
     }
 
     free_reddit_app(app);
-    free_rofi_reddit_cfg(cfg);
-    free_rofi_reddit_paths(paths);
     free_reddit_access_token(token);
     free_reddit_api_response(response);
 }
