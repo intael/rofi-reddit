@@ -22,3 +22,20 @@ long* get_response_status(CURL* client) {
     curl_easy_getinfo(client, CURLINFO_RESPONSE_CODE, http_code);
     return http_code;
 }
+
+enum http_status_code http_status_code_from(long code) {
+    switch (code) {
+    case 200L:
+        return HTTP_OK;
+    case 400L:
+        return HTTP_BAD_REQUEST;
+    case 401L:
+        return HTTP_UNAUTHORIZED;
+    case 403L:
+        return HTTP_FORBIDDEN;
+    case 404L:
+        return HTTP_NOT_FOUND;
+    default:
+        return (enum http_status_code)code;
+    }
+}

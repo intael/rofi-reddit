@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "curl_wrappers.h"
 #include "glib.h"
 #include "reddit.h"
 #include <rofi/helper.h>
@@ -43,6 +44,29 @@ static unsigned int rofi_reddit_mode_get_num_entries(const Mode* sw) {
     return 0;
 }
 
+static void handle_403_response(const struct reddit_api_response* response,
+                                RofiRedditModePrivateData* pd) {
+    json_error_t error;
+    json_t* root = json_loads((const char*)response->data, 0, &error);
+    if (root && json_is_object(root)) {
+        json_t* reason = json_object_get(root, "reason");
+        if (reason && json_is_string(reason)) {
+            const char* reason_str = json_string_value(reason);
+            if (strcmp(reason_str, "private") == 0) {
+                fprintf(stderr, "Subreddit is private. You do not have access.\n");
+            } else if (strcmp(reason_str, "quarantined") == 0) {
+                fprintf(stderr, "Subreddit is quarantined. Special access required.\n");
+            } else {
+                fprintf(stderr, "%s.\n", reason_str);
+            }
+        }
+        json_decref(root);
+    } else {
+        fprintf(stdout, "Access token is invalid or expired. Trying to fetch new one.\n");
+        pd->token = fetch_and_cache_token(pd->app);
+    }
+}
+
 static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
                                         unsigned int selected_line) {
     ModeMode retv = MODE_EXIT;
@@ -60,7 +84,7 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
             return MODE_EXIT;
         }
         char cmd[500];
-        snprintf(cmd, sizeof(cmd), "xdg-open '%s' &", pd->listings->items[selected_line].permalink);
+        snprintf(cmd, sizeof(cmd), "xdg-open '%s' &", pd->listings->items[selected_line].url);
         system(cmd);
         retv = MODE_EXIT;
     } else if (mretv & MENU_PREVIOUS) {
@@ -68,12 +92,12 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
     } else if ((mretv & MENU_CUSTOM_INPUT)) {
         fprintf(stdout, "Fetching subreddit=%s listings.\n", *input);
         const struct reddit_api_response* response = fetch_hot_listings(pd->app, pd->token, *input);
-        if (*response->http_status_code == 401 || *response->http_status_code == 403) {
-            fprintf(stdout, "Access token is invalid or expired. Trying to fetch new one.\n");
-            pd->token = fetch_and_cache_token(pd->app);
-            response = fetch_hot_listings(pd->app, pd->token, *input);
-        }
-        pd->listings = response->data;
+        if (response->status_code == HTTP_UNAUTHORIZED || response->status_code == HTTP_FORBIDDEN)
+            handle_403_response(response, pd);
+        response = fetch_hot_listings(pd->app, pd->token, *input);
+        pd->listings = (struct listings*)response->data;
+        fprintf(stdout, "Collected listings: %zu\n", pd->listings->count);
+        free_reddit_api_response(response);
         retv = RELOAD_DIALOG;
     }
     return retv;
@@ -109,7 +133,7 @@ static int rofi_reddit_token_match(const Mode* sw, rofi_int_matcher** tokens, un
 }
 
 static char* get_message(const Mode* sw) {
-    return g_strdup("Subreddit:");
+    return g_strdup("Type a subreddit to fetch threads for!");
 }
 
 Mode mode = {

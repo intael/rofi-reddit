@@ -16,34 +16,7 @@ deps = [
   rofi_dependency,
 ]
 
-main_sources = [
-  'src/reddit.c',
-  'src/curl_wrappers.c',
-  'src/memory.c',
-  'src/rofi_reddit.c',
-]
+project_inc = include_directories('src')
 
-pluginsdir = rofi_dependency.get_variable('pluginsdir')
-
-link_args = []
-if host_machine.system() == 'darwin'
-  link_args = ['-Wl,-undefined,dynamic_lookup']
-elif host_machine.system() == 'linux'
-  link_args = ['-Wl,--unresolved-symbols=ignore-all']
-endif
-
-rofi_reddit_shared_lib = shared_library(
-  meson.project_name(),
-  main_sources,
-  dependencies: deps,
-  install_dir: pluginsdir,
-  name_prefix: '',
-  install: true,
-  link_args: link_args,
-)
-message('rofi-reddit shared library: ', pluginsdir)
-
-project_inc = include_directories('.')
-src_inc = include_directories('src')
-
+subdir('src')
 subdir('tests')

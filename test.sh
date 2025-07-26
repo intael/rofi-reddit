@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-meson setup build --reconfigure
+meson setup build --reconfigure --buildtype=debug
 
 cp build/compile_commands.json .
 

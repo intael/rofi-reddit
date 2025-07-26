@@ -6,7 +6,7 @@ c_file="$header_name.c"
 $4 ../subprojects/CMock/lib/cmock.rb -o$1 $2
 
 if [ $? -eq 0 ]; then
-	mocks_path="$MESON_BUILD_ROOT/mocks"
+	mocks_path="$MESON_SOURCE_ROOT/tests/build/mocks"
 	if [ -n "$5" ]; then
 		mocks_path="$mocks_path/$5"
 	fi

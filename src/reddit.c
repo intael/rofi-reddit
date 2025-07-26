@@ -1,6 +1,6 @@
-#include "src/reddit.h"
-#include "src/curl_wrappers.h"
-#include "src/memory.h"
+#include "reddit.h"
+#include "curl_wrappers.h"
+#include "memory.h"
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <curl/urlapi.h>
@@ -40,7 +40,7 @@ static void free_app_auth(const struct app_auth* auth) {
     free((void*)auth);
 }
 
-const struct rofi_reddit_paths* new_rofi_reddit_paths() {
+struct rofi_reddit_paths* new_rofi_reddit_paths() {
     char* home_path = getenv("HOME");
     if (!home_path) {
         home_path = getpwuid(getuid())->pw_dir;
@@ -63,7 +63,7 @@ const struct rofi_reddit_paths* new_rofi_reddit_paths() {
     paths->config_path = config_file_path;
     paths->access_token_cache_path = g_build_filename(plugin_config_dir, "access_token", NULL);
     struct stat st;
-    // file exists, process has read permissions, and file is nonempty
+    // file exists, process has read permissspainions, and file is nonempty
     paths->access_token_cache_exists = stat(paths->access_token_cache_path, &st) == 0 &&
                                        access(paths->access_token_cache_path, R_OK) == 0 &&
                                        st.st_size > 0;
@@ -79,7 +79,7 @@ void free_rofi_reddit_paths(const struct rofi_reddit_paths* paths) {
     free((void*)paths);
 }
 
-const struct rofi_reddit_cfg* new_rofi_reddit_cfg(const struct rofi_reddit_paths* paths) {
+const struct rofi_reddit_cfg* new_rofi_reddit_cfg(struct rofi_reddit_paths* paths) {
     struct rofi_reddit_cfg* cfg =
         (struct rofi_reddit_cfg*)LOG_ERR_MALLOC(struct rofi_reddit_cfg, 2);
     if (access(paths->config_path, R_OK) != 0) {
@@ -169,6 +169,50 @@ static const RedditAccessToken* deserialize_access_token(struct response* resp) 
     return NULL;
 }
 
+static const struct listing* deserialize_listing(json_t* listing_json,
+                                                 struct listing* deserialize_to, size_t index) {
+    json_t* data = json_object_get(listing_json, "data");
+    if (!data || !json_is_object(data)) {
+        fprintf(stderr, "No data found for listing.\n");
+        return NULL;
+    }
+    const char* title_val = json_string_value(json_object_get(data, "title"));
+    if (!title_val) {
+        return NULL;
+    }
+    struct listing* item = deserialize_to + index;
+    item->title = strdup(title_val);
+
+    const char* selftext_val = json_string_value(json_object_get(data, "selftext"));
+    item->selftext = selftext_val ? strdup(selftext_val) : NULL;
+
+    json_t* ups_json = json_object_get(data, "ups");
+    item->ups =
+        (ups_json && json_is_integer(ups_json)) ? (uint32_t)json_integer_value(ups_json) : 0;
+
+    const char* permalink_val = json_string_value(json_object_get(data, "permalink"));
+    const char* url_val = NULL;
+    const char* path_val = NULL;
+
+    if (permalink_val) {
+        path_val = permalink_val;
+    } else {
+        url_val = json_string_value(json_object_get(data, "url"));
+        path_val = url_val;
+    }
+
+    item->url = NULL;
+    if (path_val) {
+        size_t len = strlen(HTTPS_SCHEME) + strlen(REDDIT_HOST) + strlen(path_val) + 1;
+        char* parsed_url = LOG_ERR_MALLOC(char, len);
+        snprintf(parsed_url, len, "%s%s%s", HTTPS_SCHEME, REDDIT_HOST, path_val);
+        item->url = parsed_url;
+    } else {
+        fprintf(stderr, "No URL or permalink found for listing.\n");
+    }
+    return item;
+}
+
 static const struct listings* deserialize_listings(const struct response* resp) {
     json_t* payload = deserialize_json_response(resp);
     if (payload) {
@@ -178,18 +222,7 @@ static const struct listings* deserialize_listings(const struct response* resp) 
         struct listing* items = (struct listing*)LOG_ERR_MALLOC(struct listing, count);
         for (size_t i = 0; i < count; i++) {
             json_t* listing_json = json_array_get(listing_payloads, i);
-            json_t* data = json_object_get(listing_json, "data");
-            struct listing* item = (struct listing*)LOG_ERR_MALLOC(struct listing, 1);
-            item->title = strdup(json_string_value(json_object_get(data, "title")));
-            item->selftext = strdup(json_string_value(json_object_get(data, "selftext")));
-            char* permalink_path = strdup(json_string_value(json_object_get(data, "permalink")));
-            size_t len = strlen(HTTPS_SCHEME) + strlen(REDDIT_HOST) + strlen(permalink_path) + 1;
-            char* permalink = LOG_ERR_MALLOC(char, len);
-            snprintf(permalink, len, "%s%s%s", HTTPS_SCHEME, REDDIT_HOST, permalink_path);
-            item->permalink = permalink;
-            item->ups = (uint32_t)json_integer_value(json_object_get(data, "ups"));
-            items[i] = *item;
-            free(item);
+            deserialize_listing(listing_json, items, i);
         }
         reddit_listings->count = count;
         reddit_listings->items = items;
@@ -204,7 +237,7 @@ void free_listing(const struct listing* listing) {
         return;
     free(listing->title);
     free(listing->selftext);
-    free(listing->permalink);
+    free(listing->url);
 }
 
 void free_listings(const struct listings* listings) {
@@ -217,7 +250,8 @@ void free_listings(const struct listings* listings) {
     free((void*)listings);
 }
 
-const RedditAccessToken* fetch_reddit_access_token_from_api(const RedditApp* const app) {
+const struct reddit_api_response* fetch_reddit_access_token_from_api(const RedditApp* const app) {
+    curl_easy_reset(app->http_client);
     struct response* response_buffer = new_response();
     struct curl_slist* ua_header = user_agent_header(app);
 
@@ -242,32 +276,31 @@ const RedditAccessToken* fetch_reddit_access_token_from_api(const RedditApp* con
 
     CURLcode status = curl_easy_perform(app->http_client);
 
-    curl_slist_free_all(ua_header);
-
     long* resp_status = get_response_status(app->http_client);
     fprintf(stderr, "Reddit access token request status code: %ld\n", *resp_status);
     const RedditAccessToken* reddit_token = NULL;
-    if (status == CURLE_OK && *(resp_status) == 200) {
+    if (status == CURLE_OK && *(resp_status) == HTTP_OK) {
         reddit_token = deserialize_access_token(response_buffer);
-    } else {
-        fprintf(stderr, "Reddit access token request failed or returned non-200 code.\n");
     }
-    free_response(response_buffer);
-    free(resp_status);
+
+    curl_slist_free_all(ua_header);
     curl_url_cleanup(url);
     curl_free(url_str);
-    return reddit_token;
+    free_response(response_buffer);
+    return new_reddit_api_response((void*)reddit_token, resp_status);
 }
 
-RedditAccessToken* fetch_and_cache_token(const RedditApp* const app) {
-    const RedditAccessToken* token = fetch_reddit_access_token_from_api(app);
-    if (token) {
+RedditAccessToken* fetch_and_cache_token(const RedditApp* app) {
+    struct reddit_api_response* response = fetch_reddit_access_token_from_api(app);
+    const RedditAccessToken* token = (RedditAccessToken*)(response->data);
+    if (token && response->status_code == HTTP_OK) {
         fprintf(stdout, "Obtained access token from API of size: %zu. Caching to %s\n",
                 strlen(token->token), app->config->paths->access_token_cache_path);
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "w+");
         fputs(token->token, CACHE);
-        return token;
+        app->config->paths = new_rofi_reddit_paths();
     }
+    return token;
 }
 
 const RedditAccessToken* new_reddit_access_token(const RedditApp* const app) {
@@ -299,10 +332,10 @@ void free_reddit_access_token(const RedditAccessToken* token) {
 
 const struct reddit_api_response*
 fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token, const char* subreddit) {
+    curl_easy_reset(app->http_client);
     struct response* response_buffer = new_response();
     struct curl_slist* ua_header = user_agent_header(app);
 
-    curl_easy_reset(app->http_client);
     CURL* url = curl_url();
     curl_url_set(url, CURLUPART_SCHEME, "https", 0);
     curl_url_set(url, CURLUPART_HOST, REDDIT_API_HOST, 0);
@@ -325,28 +358,23 @@ fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token, const c
 
     CURLcode status = curl_easy_perform(app->http_client);
 
+    long* resp_status = get_response_status(app->http_client);
+
+    const struct listings* listings = NULL;
+    if (status == CURLE_OK && *(resp_status) == 200L) {
+        listings = deserialize_listings(response_buffer);
+    }
     curl_slist_free_all(ua_header);
     curl_url_cleanup(url);
     curl_free(url_str);
-
-    long* resp_status = get_response_status(app->http_client);
-    fprintf(stdout, "Fetch hot listings status code: %ld\n", *resp_status);
-    // fprintf(stdout, "%s\n", json_dumps(json_object_get(response_payload, "data"),
-    // JSON_INDENT(2)));
-
-    const struct listings* listings = NULL;
-    if (status == CURLE_OK && *(resp_status) == 200) {
-        listings = deserialize_listings(response_buffer);
-    } else {
-        fprintf(stderr, "Reddit hot listings request failed or returned non-200 code.\n");
-    }
+    free_response(response_buffer);
     return new_reddit_api_response((void*)listings, resp_status);
 }
 
 struct reddit_api_response* new_reddit_api_response(void* data, long* status_code) {
     struct reddit_api_response* response =
         (struct reddit_api_response*)LOG_ERR_MALLOC(struct reddit_api_response, 1);
-    response->http_status_code = status_code;
+    response->status_code = http_status_code_from(*status_code);
     response->data = data;
     return response;
 }
@@ -354,6 +382,6 @@ struct reddit_api_response* new_reddit_api_response(void* data, long* status_cod
 void free_reddit_api_response(const struct reddit_api_response* response) {
     if (!response)
         return;
-    free(response->data);
+    // pointer to data is owned by the caller, so we don't free it here
     free((void*)response);
 }

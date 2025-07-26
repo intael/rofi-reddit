@@ -1,4 +1,4 @@
-#include "tomlc17.h"
+#include "curl_wrappers.h"
 #include <curl/curl.h>
 #include <jansson.h>
 #include <stdbool.h>
@@ -14,7 +14,7 @@ struct rofi_reddit_paths {
   bool access_token_cache_exists;
 };
 
-const struct rofi_reddit_paths *new_rofi_reddit_paths();
+struct rofi_reddit_paths *new_rofi_reddit_paths();
 void free_rofi_reddit_paths(const struct rofi_reddit_paths *paths);
 
 struct app_auth {
@@ -25,15 +25,15 @@ struct app_auth {
 
 struct rofi_reddit_cfg {
   const struct app_auth *auth;
-  const struct rofi_reddit_paths *paths;
+  struct rofi_reddit_paths *paths;
 };
 
 const struct rofi_reddit_cfg *
-new_rofi_reddit_cfg(const struct rofi_reddit_paths *paths);
+new_rofi_reddit_cfg(struct rofi_reddit_paths *paths);
 void free_rofi_reddit_cfg(const struct rofi_reddit_cfg *cfg);
 
 typedef struct {
-  const struct rofi_reddit_cfg *config;
+  struct rofi_reddit_cfg *config;
   CURL *http_client;
 } RedditApp;
 
@@ -45,14 +45,14 @@ typedef struct {
   const char *token;
 } RedditAccessToken;
 
-const RedditAccessToken *
-fetch_reddit_access_token_from_api(const RedditApp *app);
+const struct reddit_api_response *
+fetch_reddit_access_token_from_api(const RedditApp const *app);
 RedditAccessToken *fetch_and_cache_token(const RedditApp *app);
 
 struct listing {
   char *title;
   char *selftext;
-  char *permalink;
+  char *url;
   uint32_t ups;
 };
 void free_listing(const struct listing *listing);
@@ -73,7 +73,7 @@ const RedditAccessToken *new_reddit_access_token(const RedditApp *app);
 void free_reddit_access_token(const RedditAccessToken *token);
 
 struct reddit_api_response {
-  long *http_status_code;
+  enum http_status_code status_code;
   const void *data;
 };
 
