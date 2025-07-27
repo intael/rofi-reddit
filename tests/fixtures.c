@@ -16,8 +16,8 @@ RedditApp* fake_app() {
     return app;
 }
 
-struct response* fake_response(char* buffer) {
-    struct response* fake_resp = malloc(sizeof(struct response));
+struct response_buffer* fake_response(char* buffer) {
+    struct response_buffer* fake_resp = malloc(sizeof(struct response_buffer));
     fake_resp->buffer = buffer;
     fake_resp->size = strlen(buffer);
     return fake_resp;

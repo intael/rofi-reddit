@@ -3,14 +3,14 @@
 #ifndef _CURLWRAPPERS__H
 #define _CURLWRAPPERS_H
 
-struct response {
+struct response_buffer {
   char *buffer;
   size_t size;
 };
 
-struct response *new_response();
+struct response_buffer *new_response_buffer();
 
-void free_response(struct response *resp);
+void free_response_buffer(struct response_buffer *resp);
 
 long *get_response_status(CURL *client);
 

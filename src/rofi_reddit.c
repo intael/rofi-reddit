@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -37,18 +38,15 @@ static int rofi_reddit_mode_init(Mode* sw) {
 static unsigned int rofi_reddit_mode_get_num_entries(const Mode* sw) {
     const RofiRedditModePrivateData* pd =
         (const RofiRedditModePrivateData*)mode_get_private_data(sw);
-    if (pd->listings) {
-        fprintf(stdout, "Number of listings: %zu\n", pd->listings->count);
+    if (pd->listings)
         return pd->listings->count;
-    }
     return 0;
 }
 
-static void handle_403_response(const struct reddit_api_response* response,
-                                RofiRedditModePrivateData* pd) {
+static bool is_bad_response_due_to_access_token(const struct reddit_api_response* response) {
     json_error_t error;
-    json_t* root = json_loads((const char*)response->data, 0, &error);
-    if (root && json_is_object(root)) {
+    json_t* root = json_loads((const char*)response->response_buffer->buffer, 0, &error);
+    if (response->status_code == HTTP_FORBIDDEN && root && json_is_object(root)) {
         json_t* reason = json_object_get(root, "reason");
         if (reason && json_is_string(reason)) {
             const char* reason_str = json_string_value(reason);
@@ -59,12 +57,14 @@ static void handle_403_response(const struct reddit_api_response* response,
             } else {
                 fprintf(stderr, "%s.\n", reason_str);
             }
+        } else {
+            fprintf(stderr, "Access to subreddit is forbidden for an unknown reason.\n");
         }
         json_decref(root);
-    } else {
-        fprintf(stdout, "Access token is invalid or expired. Trying to fetch new one.\n");
-        pd->token = fetch_and_cache_token(pd->app);
+        return false;
     }
+    fprintf(stdout, "Detected expired or invalid access token.\n");
+    return true;
 }
 
 static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
@@ -92,13 +92,31 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
     } else if ((mretv & MENU_CUSTOM_INPUT)) {
         fprintf(stdout, "Fetching subreddit=%s listings.\n", *input);
         const struct reddit_api_response* response = fetch_hot_listings(pd->app, pd->token, *input);
-        if (response->status_code == HTTP_UNAUTHORIZED || response->status_code == HTTP_FORBIDDEN)
-            handle_403_response(response, pd);
-        response = fetch_hot_listings(pd->app, pd->token, *input);
-        pd->listings = (struct listings*)response->data;
-        fprintf(stdout, "Collected listings: %zu\n", pd->listings->count);
-        free_reddit_api_response(response);
+        switch (response->status_code) {
+        case HTTP_OK:
+            pd->listings = deserialize_listings(response->response_buffer);
+            break;
+        case HTTP_UNAUTHORIZED:
+        case HTTP_FORBIDDEN:
+            if (is_bad_response_due_to_access_token(response)) {
+                free_reddit_api_response(response);
+                free_reddit_access_token(pd->token);
+                pd->token = fetch_and_cache_token(pd->app);
+                retv = rofi_reddit_mode_result(sw, mretv, input, selected_line);
+            }
+            break;
+        case HTTP_NOT_FOUND:
+            fprintf(stdout, "Subreddit=%s doesn't seem to exist.\n", *input);
+            return MODE_EXIT;
+        default:
+            break;
+        }
+        if (pd->listings) {
+            fprintf(stdout, "Collected listings: %zu\n", pd->listings->count);
+        }
         retv = RELOAD_DIALOG;
+        if (response)
+            free_reddit_api_response(response);
     }
     return retv;
 }
@@ -133,6 +151,10 @@ static int rofi_reddit_token_match(const Mode* sw, rofi_int_matcher** tokens, un
 }
 
 static char* get_message(const Mode* sw) {
+    RofiRedditModePrivateData* pd = (RofiRedditModePrivateData*)mode_get_private_data(sw);
+    if (pd->listings && pd->listings->count > 0) {
+        return g_strdup("Now select a thread to open in your browser!");
+    }
     return g_strdup("Type a subreddit to fetch threads for!");
 }
 

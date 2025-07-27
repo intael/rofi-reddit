@@ -5,14 +5,14 @@
 
 static const int INITIAL_RESPONSE_BUFFER_SIZE = (256 * 1024);
 
-struct response* new_response() {
-    struct response* resp = (struct response*)LOG_ERR_MALLOC(struct response, 1);
+struct response_buffer* new_response_buffer() {
+    struct response_buffer* resp = (struct response_buffer*)LOG_ERR_MALLOC(struct response_buffer, 1);
     resp->buffer = LOG_ERR_MALLOC(char, INITIAL_RESPONSE_BUFFER_SIZE);
     resp->size = 0;
     return resp;
 }
 
-void free_response(struct response* resp) {
+void free_response_buffer(struct response_buffer* resp) {
     free(resp->buffer);
     free(resp);
 }

@@ -46,7 +46,7 @@ typedef struct {
 } RedditAccessToken;
 
 const struct reddit_api_response *
-fetch_reddit_access_token_from_api(const RedditApp const *app);
+fetch_reddit_access_token_from_api(const RedditApp *app);
 RedditAccessToken *fetch_and_cache_token(const RedditApp *app);
 
 struct listing {
@@ -62,6 +62,8 @@ struct listings {
   size_t count;
 };
 
+const struct listings *deserialize_listings(const struct response_buffer *resp);
+
 void free_listings(const struct listings *listings);
 
 const struct reddit_api_response *
@@ -74,11 +76,11 @@ void free_reddit_access_token(const RedditAccessToken *token);
 
 struct reddit_api_response {
   enum http_status_code status_code;
-  const void *data;
+  const struct response_buffer *response_buffer;
 };
 
-struct reddit_api_response *new_reddit_api_response(void *data,
-                                                    long *status_code);
+struct reddit_api_response *
+new_reddit_api_response(struct response_buffer *response, long *status_code);
 void free_reddit_api_response(const struct reddit_api_response *response);
 
 #endif

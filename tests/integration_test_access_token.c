@@ -22,7 +22,7 @@ void test_hot_listings_fetch_end_to_end(void) {
         paths = new_rofi_reddit_paths();
     }
 
-    struct listings* listings = (struct listings*)response->data;
+    const struct listings* listings = deserialize_listings(response->response_buffer);
     fprintf(stdout, "Fetched %zu threads from subreddit 'spainfire'.\n", listings->count);
     for (int i = 0; i < listings->count; i++) {
         fprintf(stdout, "Thread %d: \n", i + 1);
