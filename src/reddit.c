@@ -303,7 +303,7 @@ const RedditAccessToken* new_reddit_access_token(const RedditApp* const app) {
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "r");
         char* buffer = malloc(*ACCESS_TOKEN_MAX_SIZE);
         fgets(buffer, *ACCESS_TOKEN_MAX_SIZE, CACHE);
-        RedditAccessToken* cached_token = malloc(sizeof(RedditAccessToken));
+        RedditAccessToken* cached_token = LOG_ERR_MALLOC(RedditAccessToken, 1);
         cached_token->token = buffer;
         reddit_token = cached_token;
         fprintf(stdout, "Access token cache hit.\n");

@@ -83,4 +83,14 @@ struct reddit_api_response *
 new_reddit_api_response(struct response_buffer *response, long *status_code);
 void free_reddit_api_response(const struct reddit_api_response *response);
 
+enum subreddit_access {
+  SUBREDDIT_ACCESS_UNINITIALIZED,
+  SUBREDDIT_ACCESS_OK,
+  SUBREDDIT_ACCESS_DOESNT_EXIST,
+  SUBREDDIT_ACCESS_PRIVATE,
+  SUBREDDIT_ACCESS_QUARANTINED,
+  SUBREDDIT_ACCESS_EXPIRED_TOKEN,
+  SUBREDDIT_ACCESS_UNKNOWN
+};
+
 #endif
