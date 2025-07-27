@@ -18,5 +18,13 @@ deps = [
 
 project_inc = include_directories('src')
 
+home_dir = run_command('sh', '-c', 'echo $HOME', capture: true, check: true).stdout().strip()
+plugin_config_dir = home_dir / '.config' / 'rofi-reddit'
+config_file = plugin_config_dir / 'config.toml'
+install_data(
+  'config.toml',
+  install_dir: plugin_config_dir,
+)
+
 subdir('src')
 subdir('tests')

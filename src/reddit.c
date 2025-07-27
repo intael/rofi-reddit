@@ -45,7 +45,7 @@ struct rofi_reddit_paths* new_rofi_reddit_paths() {
     if (!home_path) {
         home_path = getpwuid(getuid())->pw_dir;
     }
-    char* plugin_config_dir = g_build_filename(home_path, ".config", "rofi_reddit", NULL);
+    char* plugin_config_dir = g_build_filename(home_path, ".config", "rofi-reddit", NULL);
     if (access(plugin_config_dir, F_OK) != 0) {
         fprintf(stderr, "Rofi Reddit config directory does not exist. Aborting.\n");
         free(plugin_config_dir);
@@ -84,7 +84,7 @@ const struct rofi_reddit_cfg* new_rofi_reddit_cfg(struct rofi_reddit_paths* path
         (struct rofi_reddit_cfg*)LOG_ERR_MALLOC(struct rofi_reddit_cfg, 2);
     if (access(paths->config_path, R_OK) != 0) {
         fprintf(stderr,
-                "Could not read rofi_reddit config file due to missing read permissions at %s\n",
+                "Could not read rofi-reddit config file due to missing read permissions at %s\n",
                 paths->config_path);
         return NULL;
     }

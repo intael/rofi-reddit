@@ -50,7 +50,7 @@ test_env = ['LC_ALL=C']
 unit_test_access_token_fetch_exec = executable(
   'unit-test-access-token',
   ['fixtures.c', 'test_access_token_fetch.c'],
-  objects: rofi_reddit_shared_lib.extract_objects('reddit.c','memory.c'),
+  objects: rofi_reddit_shared_lib.extract_objects('reddit.c', 'memory.c'),
   dependencies: [unity_dep] + deps,
   link_with: [mocks],
   include_directories: ['mocks', project_inc],
@@ -64,18 +64,28 @@ test(
   workdir: meson.current_source_dir(),
 )
 
-integration_test_access_token_exec = executable(
-  'integration-test-access-token',
-  ['integration_test_access_token.c'],
-  objects: rofi_reddit_shared_lib.extract_objects('reddit.c', 'curl_wrappers.c', 'memory.c'),
-  dependencies: deps + [unity_dep],
-  include_directories: [project_inc],
-)
+message('Config file path: ', config_file)
 
-test(
-  'integration_test_access_token',
-  integration_test_access_token_exec,
-  env: test_env,
-  protocol: 'exitcode',
-  workdir: meson.current_source_dir(),
-)
+fs = import('fs')
+if fs.exists(config_file)
+  integration_test_access_token_exec = executable(
+    'integration-test-access-token',
+    ['integration_test_access_token.c'],
+    objects: rofi_reddit_shared_lib.extract_objects('reddit.c', 'curl_wrappers.c', 'memory.c'),
+    dependencies: deps + [unity_dep],
+    include_directories: [project_inc],
+  )
+
+  test(
+    'integration_test_access_token',
+    integration_test_access_token_exec,
+    env: test_env,
+    protocol: 'exitcode',
+    workdir: meson.current_source_dir(),
+  )
+else
+  message(
+    'Skipping integration_test_access_token: config file not found at '
+    + config_file,
+  )
+endif

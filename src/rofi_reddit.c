@@ -17,6 +17,7 @@ typedef struct {
     const RedditApp* app;
     const RedditAccessToken* token;
     struct listings* listings;
+    char* selected_subreddit;
     enum subreddit_access subreddit_access;
 } RofiRedditModePrivateData;
 
@@ -30,6 +31,7 @@ static int rofi_reddit_mode_init(Mode* sw) {
         pd->app = app;
         pd->token = new_reddit_access_token(app);
         pd->listings = NULL;
+        pd->selected_subreddit = NULL;
         pd->subreddit_access = SUBREDDIT_ACCESS_UNINITIALIZED;
         fprintf(stdout, "Initialized Rofi Reddit Mode with app: %s\n",
                 app->config->auth->client_name);
@@ -51,6 +53,7 @@ subreddit_access_denied_reason(const struct reddit_api_response* response) {
     json_t* root = json_loads((const char*)response->response_buffer->buffer, 0, &error);
     enum subreddit_access access_status = SUBREDDIT_ACCESS_EXPIRED_TOKEN;
     if (response->status_code == HTTP_FORBIDDEN && root && json_is_object(root)) {
+        access_status = SUBREDDIT_ACCESS_UNKNOWN;
         json_t* reason = json_object_get(root, "reason");
         if (reason && json_is_string(reason)) {
             const char* reason_str = json_string_value(reason);
@@ -59,8 +62,6 @@ subreddit_access_denied_reason(const struct reddit_api_response* response) {
             } else if (strcmp(reason_str, "quarantined") == 0) {
                 access_status = SUBREDDIT_ACCESS_QUARANTINED;
             }
-        } else {
-            access_status = SUBREDDIT_ACCESS_UNKNOWN;
         }
         json_decref(root);
     }
@@ -106,6 +107,7 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
             pd->subreddit_access = SUBREDDIT_ACCESS_UNKNOWN;
             return RELOAD_DIALOG;
         }
+        pd->selected_subreddit = subreddit;
         fprintf(stdout, "Fetching subreddit=%s listings.\n", subreddit);
         const struct reddit_api_response* response =
             fetch_hot_listings(pd->app, pd->token, subreddit);
@@ -136,7 +138,7 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
         default:
             break;
         }
-        if (pd->listings) {
+        if (pd->listings && pd->listings->count > 0) {
             fprintf(stdout, "Collected listings: %zu\n", pd->listings->count);
         }
         retv = RELOAD_DIALOG;
@@ -153,6 +155,7 @@ static void rofi_reddit_mode_destroy(Mode* sw) {
         free_reddit_access_token(pd->token);
         free_reddit_app(pd->app);
         free_listings(pd->listings);
+        free(pd->selected_subreddit);
         g_free(pd);
         mode_set_private_data(sw, NULL);
     }
@@ -184,7 +187,9 @@ static char* get_message(const Mode* sw) {
         break;
     case SUBREDDIT_ACCESS_OK:
         if (pd->listings && pd->listings->count > 0) {
-            message = "Now select a thread to open in your browser!";
+            message = g_strdup_printf(
+                "Found %zu threads for subreddit '%s'. Now select a thread to open in your browser!",
+                pd->listings->count, pd->selected_subreddit);
         } else {
             message = "No threads available on this subreddit. Type another subreddit to fetch "
                       "threads for!";
@@ -211,8 +216,8 @@ static char* get_message(const Mode* sw) {
 
 Mode mode = {
     .abi_version = ABI_VERSION,
-    .name = "rofi_reddit",
-    .cfg_name_key = "display-rofi_reddit",
+    .name = "rofi-reddit",
+    .cfg_name_key = "display-rofi-reddit",
     ._init = rofi_reddit_mode_init,
     ._get_num_entries = rofi_reddit_mode_get_num_entries,
     ._result = rofi_reddit_mode_result,
