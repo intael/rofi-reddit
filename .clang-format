@@ -38,7 +38,7 @@ SpaceBeforeParens: ControlStatements
 # Include sorting - leave as is (none), or use `case-sensitive`
 SortIncludes: true
 
-ColumnLimit: 100
+ColumnLimit: 120
 
 # Align pointer/reference to type name (C99 style)
 PointerAlignment: Left

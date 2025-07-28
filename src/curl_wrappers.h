@@ -1,7 +1,8 @@
 #include <curl/curl.h>
+#include <stddef.h>
 
-#ifndef _CURLWRAPPERS__H
-#define _CURLWRAPPERS_H
+#ifndef CURL_WRAPPERS_H
+#define CURL_WRAPPERS_H
 
 struct response_buffer {
   char *buffer;

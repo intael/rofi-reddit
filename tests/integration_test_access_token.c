@@ -14,8 +14,7 @@ void tearDown(void) {
 void test_hot_listings_fetch_end_to_end(void) {
     struct rofi_reddit_paths* paths = new_rofi_reddit_paths();
     if (access(paths->config_path, F_OK) == -1 || access(paths->config_path, R_OK) == -1) {
-        fprintf(stdout,
-                "Config file not found or not readable. Run the setup script to create it.\n");
+        fprintf(stdout, "Config file not found or not readable. Run the setup script to create it.\n");
         TEST_FAIL_MESSAGE("Config file not found.");
     }
     struct rofi_reddit_cfg* cfg = new_rofi_reddit_cfg(paths);

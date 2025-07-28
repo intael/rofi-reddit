@@ -8,9 +8,8 @@ Checks: >
   modernize-*,
   misc-*,
   performance-*,
-  security-*,
 
-HeaderFilterRegex: '.*'
+HeaderFilterRegex: '^(src|tests)'
 
 CheckOptions:
   - key: readability-identifier-naming.ClassCase
@@ -30,11 +29,4 @@ CheckOptions:
   - key: readability-braces-around-statements.ShortStatementLines
     value: 2
   - key: readability-function-size.LineThreshold
-    value: 100
-  - key: readability-magic-numbers.IgnoredValues
-    value: '0, 1, -1'
-  - key: readability-magic-numbers.IgnoreAllFloatingPoint
-    value: true
-  - key: readability-magic-numbers.IgnoreAllInteger
-    value: false
-
+    value: 120

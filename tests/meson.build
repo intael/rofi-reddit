@@ -66,7 +66,6 @@ test(
 
 message('Config file path: ', config_file)
 
-fs = import('fs')
 if fs.exists(config_file)
   integration_test_access_token_exec = executable(
     'integration-test-access-token',

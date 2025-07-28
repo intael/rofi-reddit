@@ -58,15 +58,13 @@ struct rofi_reddit_paths* new_rofi_reddit_paths() {
         free(config_file_path);
         exit(EXIT_FAILURE);
     }
-    struct rofi_reddit_paths* paths =
-        (struct rofi_reddit_paths*)malloc(sizeof(struct rofi_reddit_paths));
+    struct rofi_reddit_paths* paths = (struct rofi_reddit_paths*)malloc(sizeof(struct rofi_reddit_paths));
     paths->config_path = config_file_path;
     paths->access_token_cache_path = g_build_filename(plugin_config_dir, "access_token", NULL);
     struct stat st;
     // file exists, process has read permissions and file is nonempty
     paths->access_token_cache_exists = stat(paths->access_token_cache_path, &st) == 0 &&
-                                       access(paths->access_token_cache_path, R_OK) == 0 &&
-                                       st.st_size > 0;
+                                       access(paths->access_token_cache_path, R_OK) == 0 && st.st_size > 0;
     free(plugin_config_dir);
     return paths;
 }
@@ -80,11 +78,9 @@ void free_rofi_reddit_paths(const struct rofi_reddit_paths* paths) {
 }
 
 const struct rofi_reddit_cfg* new_rofi_reddit_cfg(struct rofi_reddit_paths* paths) {
-    struct rofi_reddit_cfg* cfg =
-        (struct rofi_reddit_cfg*)LOG_ERR_MALLOC(struct rofi_reddit_cfg, 2);
+    struct rofi_reddit_cfg* cfg = (struct rofi_reddit_cfg*)LOG_ERR_MALLOC(struct rofi_reddit_cfg, 2);
     if (access(paths->config_path, R_OK) != 0) {
-        fprintf(stderr,
-                "Could not read rofi-reddit config file due to missing read permissions at %s\n",
+        fprintf(stderr, "Could not read rofi-reddit config file due to missing read permissions at %s\n",
                 paths->config_path);
         return NULL;
     }
@@ -169,8 +165,7 @@ static const RedditAccessToken* deserialize_access_token(struct response_buffer*
     return NULL;
 }
 
-static const struct listing* deserialize_listing(json_t* listing_json,
-                                                 struct listing* deserialize_to, size_t index) {
+static const struct listing* deserialize_listing(json_t* listing_json, struct listing* deserialize_to, size_t index) {
     json_t* data = json_object_get(listing_json, "data");
     if (!data || !json_is_object(data)) {
         fprintf(stderr, "No data found for listing.\n");
@@ -187,8 +182,7 @@ static const struct listing* deserialize_listing(json_t* listing_json,
     item->selftext = selftext_val ? strdup(selftext_val) : NULL;
 
     json_t* ups_json = json_object_get(data, "ups");
-    item->ups =
-        (ups_json && json_is_integer(ups_json)) ? (uint32_t)json_integer_value(ups_json) : 0;
+    item->ups = (ups_json && json_is_integer(ups_json)) ? (uint32_t)json_integer_value(ups_json) : 0;
 
     const char* permalink_val = json_string_value(json_object_get(data, "permalink"));
     const char* url_val = NULL;
@@ -270,8 +264,7 @@ const struct reddit_api_response* fetch_reddit_access_token_from_api(const Reddi
     curl_easy_setopt(app->http_client, CURLOPT_URL, url_str);
     curl_easy_setopt(app->http_client, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     curl_easy_setopt(app->http_client, CURLOPT_HTTPHEADER, ua_header);
-    curl_easy_setopt(app->http_client, CURLOPT_POSTFIELDS,
-                     "scope=read&grant_type=client_credentials");
+    curl_easy_setopt(app->http_client, CURLOPT_POSTFIELDS, "scope=read&grant_type=client_credentials");
     // curl_easy_setopt(app->http_client, CURLOPT_VERBOSE, 1L);
 
     curl_easy_perform(app->http_client);
@@ -286,8 +279,8 @@ RedditAccessToken* fetch_and_cache_token(const RedditApp* app) {
     const struct reddit_api_response* response = fetch_reddit_access_token_from_api(app);
     if (response->status_code == HTTP_OK) {
         const RedditAccessToken* token = deserialize_access_token(response->response_buffer);
-        fprintf(stdout, "Obtained access token from API of size: %zu. Caching to %s\n",
-                strlen(token->token), app->config->paths->access_token_cache_path);
+        fprintf(stdout, "Obtained access token from API of size: %zu. Caching to %s\n", strlen(token->token),
+                app->config->paths->access_token_cache_path);
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "w+");
         fputs(token->token, CACHE);
         app->config->paths = new_rofi_reddit_paths();
@@ -324,8 +317,8 @@ void free_reddit_access_token(const RedditAccessToken* token) {
     free((void*)token);
 }
 
-const struct reddit_api_response*
-fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token, const char* subreddit) {
+const struct reddit_api_response* fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token,
+                                                     const char* subreddit) {
     curl_easy_reset(app->http_client);
     struct response_buffer* response_buffer = new_response_buffer();
     struct curl_slist* ua_header = user_agent_header(app);
@@ -360,8 +353,7 @@ fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token, const c
     return new_reddit_api_response(response_buffer, resp_status);
 }
 
-struct reddit_api_response* new_reddit_api_response(struct response_buffer* response,
-                                                    long* status_code) {
+struct reddit_api_response* new_reddit_api_response(struct response_buffer* response, long* status_code) {
     struct reddit_api_response* reddit_response =
         (struct reddit_api_response*)LOG_ERR_MALLOC(struct reddit_api_response, 1);
     reddit_response->status_code = http_status_code_from(*status_code);

@@ -18,7 +18,8 @@ void tearDown(void) {
 }
 
 // TODO: It would be interesting to test here that curl_easy_setopt is called with the right stuff,
-// but CMock seems unable to mock it. So in the meanwhile we're marking that as non-mockable to CMock (see strippables in CMock's curl config). Would be good to find another way.
+// but CMock seems unable to mock it. So in the meanwhile we're marking that as non-mockable to CMock (see strippables
+// in CMock's curl config). Would be good to find another way.
 
 void test_fetch_reddit_access_token_happy_path(void) {
     new_response_buffer_ExpectAndReturn(some_response);

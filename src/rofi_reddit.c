@@ -33,22 +33,19 @@ static int rofi_reddit_mode_init(Mode* sw) {
         pd->listings = NULL;
         pd->selected_subreddit = NULL;
         pd->subreddit_access = SUBREDDIT_ACCESS_UNINITIALIZED;
-        fprintf(stdout, "Initialized Rofi Reddit Mode with app: %s\n",
-                app->config->auth->client_name);
+        fprintf(stdout, "Initialized Rofi Reddit Mode with app: %s\n", app->config->auth->client_name);
     }
     return TRUE;
 }
 
 static unsigned int rofi_reddit_mode_get_num_entries(const Mode* sw) {
-    const RofiRedditModePrivateData* pd =
-        (const RofiRedditModePrivateData*)mode_get_private_data(sw);
+    const RofiRedditModePrivateData* pd = (const RofiRedditModePrivateData*)mode_get_private_data(sw);
     if (pd->listings)
         return pd->listings->count;
     return 0;
 }
 
-static enum subreddit_access
-subreddit_access_denied_reason(const struct reddit_api_response* response) {
+static enum subreddit_access subreddit_access_denied_reason(const struct reddit_api_response* response) {
     json_error_t error;
     json_t* root = json_loads((const char*)response->response_buffer->buffer, 0, &error);
     enum subreddit_access access_status = SUBREDDIT_ACCESS_EXPIRED_TOKEN;
@@ -84,8 +81,7 @@ static const char* sanitize_subrredit_name(const char* subreddit) {
     return final;
 }
 
-static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
-                                        unsigned int selected_line) {
+static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input, unsigned int selected_line) {
     ModeMode retv = MODE_EXIT;
     RofiRedditModePrivateData* pd = (RofiRedditModePrivateData*)mode_get_private_data(sw);
     if (mretv & MENU_NEXT) {
@@ -109,8 +105,7 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input,
         }
         pd->selected_subreddit = subreddit;
         fprintf(stdout, "Fetching subreddit=%s listings.\n", subreddit);
-        const struct reddit_api_response* response =
-            fetch_hot_listings(pd->app, pd->token, subreddit);
+        const struct reddit_api_response* response = fetch_hot_listings(pd->app, pd->token, subreddit);
         switch (response->status_code) {
         case HTTP_OK:
             pd->listings = deserialize_listings(response->response_buffer);
@@ -187,9 +182,9 @@ static char* get_message(const Mode* sw) {
         break;
     case SUBREDDIT_ACCESS_OK:
         if (pd->listings && pd->listings->count > 0) {
-            message = g_strdup_printf(
-                "Found %zu threads for subreddit '%s'. Now select a thread to open in your browser!",
-                pd->listings->count, pd->selected_subreddit);
+            message = g_strdup_printf("Found %zu threads for subreddit '%s'. Now select a thread "
+                                      "to open in your browser!",
+                                      pd->listings->count, pd->selected_subreddit);
         } else {
             message = "No threads available on this subreddit. Type another subreddit to fetch "
                       "threads for!";
