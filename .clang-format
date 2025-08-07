@@ -1,8 +1,5 @@
 # Basic C99 clang-format config
 
-# Set language and standard
-#Language: C
-
 BasedOnStyle: LLVM
 
 # Use 4 spaces for indentation
