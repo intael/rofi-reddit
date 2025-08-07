@@ -1,7 +1,7 @@
 # Basic C99 clang-format config
 
 # Set language and standard
-Language: C
+#Language: C
 
 BasedOnStyle: LLVM
 

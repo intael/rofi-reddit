@@ -77,7 +77,7 @@ void free_rofi_reddit_paths(const struct rofi_reddit_paths* paths) {
     free((void*)paths);
 }
 
-const struct rofi_reddit_cfg* new_rofi_reddit_cfg(struct rofi_reddit_paths* paths) {
+struct rofi_reddit_cfg* new_rofi_reddit_cfg(struct rofi_reddit_paths* paths) {
     struct rofi_reddit_cfg* cfg = (struct rofi_reddit_cfg*)LOG_ERR_MALLOC(struct rofi_reddit_cfg, 2);
     if (access(paths->config_path, R_OK) != 0) {
         fprintf(stderr, "Could not read rofi-reddit config file due to missing read permissions at %s\n",
@@ -105,7 +105,7 @@ void free_rofi_reddit_cfg(const struct rofi_reddit_cfg* cfg) {
     free((void*)cfg);
 }
 
-const RedditApp* new_reddit_app(const struct rofi_reddit_cfg* config) {
+RedditApp* new_reddit_app(struct rofi_reddit_cfg* config) {
     RedditApp* app = (RedditApp*)LOG_ERR_MALLOC(RedditApp, 1);
     app->config = config;
     app->http_client = curl_easy_init();
@@ -154,7 +154,7 @@ static json_t* deserialize_json_response(const struct response_buffer* resp) {
     return root;
 }
 
-static const RedditAccessToken* deserialize_access_token(struct response_buffer* resp) {
+static RedditAccessToken* deserialize_access_token(const struct response_buffer* resp) {
     json_t* payload = deserialize_json_response(resp);
     if (payload) {
         RedditAccessToken* token = (RedditAccessToken*)LOG_ERR_MALLOC(RedditAccessToken, 1);
@@ -207,7 +207,7 @@ static const struct listing* deserialize_listing(json_t* listing_json, struct li
     return item;
 }
 
-const struct listings* deserialize_listings(const struct response_buffer* resp) {
+struct listings* deserialize_listings(const struct response_buffer* resp) {
     json_t* payload = deserialize_json_response(resp);
     if (payload) {
         json_t* listing_payloads = json_object_get(json_object_get(payload, "data"), "children");
@@ -278,7 +278,7 @@ const struct reddit_api_response* fetch_reddit_access_token_from_api(const Reddi
 RedditAccessToken* fetch_and_cache_token(const RedditApp* app) {
     const struct reddit_api_response* response = fetch_reddit_access_token_from_api(app);
     if (response->status_code == HTTP_OK) {
-        const RedditAccessToken* token = deserialize_access_token(response->response_buffer);
+        RedditAccessToken* token = deserialize_access_token(response->response_buffer);
         fprintf(stdout, "Obtained access token from API of size: %zu. Caching to %s\n", strlen(token->token),
                 app->config->paths->access_token_cache_path);
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "w+");
@@ -290,7 +290,7 @@ RedditAccessToken* fetch_and_cache_token(const RedditApp* app) {
     return NULL;
 }
 
-const RedditAccessToken* new_reddit_access_token(const RedditApp* const app) {
+const RedditAccessToken* new_reddit_access_token(const RedditApp* app) {
     const RedditAccessToken* reddit_token = NULL;
     if (app->config->paths->access_token_cache_exists) {
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "r");

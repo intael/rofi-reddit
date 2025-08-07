@@ -5,7 +5,7 @@ repos:
   - id: clang-format
     files: ^(src|tests)/.*\.(c|h)$
     types: [file]
-    args: ['-i']  # Apply changes in-place
+    args: ['-i', '--assume-filename=.clang-format']  # Apply changes in-place
 
 - repo: https://github.com/pocc/pre-commit-hooks
   rev: v1.3.5

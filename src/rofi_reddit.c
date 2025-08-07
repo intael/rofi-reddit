@@ -14,34 +14,34 @@
 G_MODULE_EXPORT Mode mode;
 
 typedef struct {
-    const RedditApp* app;
+    RedditApp* app;
     const RedditAccessToken* token;
     struct listings* listings;
     char* selected_subreddit;
     enum subreddit_access subreddit_access;
 } RofiRedditModePrivateData;
 
-static int rofi_reddit_mode_init(Mode* sw) {
-    if (mode_get_private_data(sw) == NULL) {
-        const struct rofi_reddit_paths* paths = new_rofi_reddit_paths();
-        const struct rofi_reddit_cfg* config = new_rofi_reddit_cfg(paths);
-        const RedditApp* app = new_reddit_app(config);
-        RofiRedditModePrivateData* pd = g_malloc0(sizeof(*pd));
-        mode_set_private_data(sw, (void*)pd);
-        pd->app = app;
-        pd->token = new_reddit_access_token(app);
-        pd->listings = NULL;
-        pd->selected_subreddit = NULL;
-        pd->subreddit_access = SUBREDDIT_ACCESS_UNINITIALIZED;
+static int rofi_reddit_mode_init(Mode* mode) {
+    if (mode_get_private_data(mode) == NULL) {
+        struct rofi_reddit_paths* paths = new_rofi_reddit_paths();
+        struct rofi_reddit_cfg* config = new_rofi_reddit_cfg(paths);
+        RedditApp* app = new_reddit_app(config);
+        RofiRedditModePrivateData* private_data = g_malloc0(sizeof(*private_data));
+        mode_set_private_data(mode, (void*)private_data);
+        private_data->app = app;
+        private_data->token = new_reddit_access_token(app);
+        private_data->listings = NULL;
+        private_data->selected_subreddit = NULL;
+        private_data->subreddit_access = SUBREDDIT_ACCESS_UNINITIALIZED;
         fprintf(stdout, "Initialized Rofi Reddit Mode with app: %s\n", app->config->auth->client_name);
     }
     return TRUE;
 }
 
-static unsigned int rofi_reddit_mode_get_num_entries(const Mode* sw) {
-    const RofiRedditModePrivateData* pd = (const RofiRedditModePrivateData*)mode_get_private_data(sw);
-    if (pd->listings)
-        return pd->listings->count;
+static unsigned int rofi_reddit_mode_get_num_entries(const Mode* mode) {
+    const RofiRedditModePrivateData* private_data = (const RofiRedditModePrivateData*)mode_get_private_data(mode);
+    if (private_data->listings)
+        return private_data->listings->count;
     return 0;
 }
 
@@ -65,7 +65,7 @@ static enum subreddit_access subreddit_access_denied_reason(const struct reddit_
     return access_status;
 }
 
-static const char* sanitize_subrredit_name(const char* subreddit) {
+static char* sanitize_subrredit_name(const char* subreddit) {
     if (!subreddit || strlen(subreddit) == 0)
         return NULL;
     char* trimmed = g_strstrip(g_strdup(subreddit));
@@ -81,15 +81,15 @@ static const char* sanitize_subrredit_name(const char* subreddit) {
     return final;
 }
 
-static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input, unsigned int selected_line) {
+static ModeMode rofi_reddit_mode_result(Mode* mode, int mretv, char** input, unsigned int selected_line) {
     ModeMode retv = MODE_EXIT;
-    RofiRedditModePrivateData* pd = (RofiRedditModePrivateData*)mode_get_private_data(sw);
+    RofiRedditModePrivateData* private_data = (RofiRedditModePrivateData*)mode_get_private_data(mode);
     if (mretv & MENU_NEXT) {
         retv = NEXT_DIALOG;
     } else if (mretv & MENU_OK) {
-        if (!pd->listings || selected_line >= pd->listings->count)
+        if (!private_data->listings || selected_line >= private_data->listings->count)
             return MODE_EXIT;
-        char* url = pd->listings->items[selected_line].url;
+        char* url = private_data->listings->items[selected_line].url;
         char* xdg_command = "xdg-open";
         char cmd[strlen(xdg_command) + strlen(url) + 4];
         snprintf(cmd, sizeof(cmd), "%s '%s' &", xdg_command, url);
@@ -98,43 +98,46 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input, unsig
     } else if (mretv & MENU_PREVIOUS) {
         retv = PREVIOUS_DIALOG;
     } else if ((mretv & MENU_CUSTOM_INPUT)) {
-        const char* subreddit = sanitize_subrredit_name(*input);
+        char* subreddit = sanitize_subrredit_name(*input);
         if (!subreddit || strlen(subreddit) == 0) {
-            pd->subreddit_access = SUBREDDIT_ACCESS_UNKNOWN;
+            private_data->subreddit_access = SUBREDDIT_ACCESS_UNKNOWN;
             return RELOAD_DIALOG;
         }
-        pd->selected_subreddit = subreddit;
+        private_data->selected_subreddit = subreddit;
         fprintf(stdout, "Fetching subreddit=%s listings.\n", subreddit);
-        const struct reddit_api_response* response = fetch_hot_listings(pd->app, pd->token, subreddit);
+        const struct reddit_api_response* response =
+            fetch_hot_listings(private_data->app, private_data->token, subreddit);
         switch (response->status_code) {
         case HTTP_OK:
-            pd->listings = deserialize_listings(response->response_buffer);
-            pd->subreddit_access = SUBREDDIT_ACCESS_OK;
+            private_data->listings = deserialize_listings(response->response_buffer);
+            private_data->subreddit_access = SUBREDDIT_ACCESS_OK;
             break;
         case HTTP_UNAUTHORIZED:
         case HTTP_FORBIDDEN:
             enum subreddit_access denied_reason = subreddit_access_denied_reason(response);
             switch (denied_reason) {
             case SUBREDDIT_ACCESS_EXPIRED_TOKEN:
-                free_reddit_access_token(pd->token);
-                pd->token = fetch_and_cache_token(pd->app);
-                retv = rofi_reddit_mode_result(sw, mretv, (char**)&subreddit, selected_line);
+                free_reddit_access_token(private_data->token);
+                private_data->token = fetch_and_cache_token(private_data->app);
+                retv = rofi_reddit_mode_result(mode, mretv, (char**)&subreddit, selected_line);
                 break;
             case SUBREDDIT_ACCESS_QUARANTINED:
             case SUBREDDIT_ACCESS_UNKNOWN:
             case SUBREDDIT_ACCESS_PRIVATE:
-                pd->subreddit_access = denied_reason;
+                private_data->subreddit_access = denied_reason;
+                break;
+            default:
                 break;
             }
             break;
         case HTTP_NOT_FOUND:
-            pd->subreddit_access = SUBREDDIT_ACCESS_DOESNT_EXIST;
+            private_data->subreddit_access = SUBREDDIT_ACCESS_DOESNT_EXIST;
             retv = RELOAD_DIALOG;
         default:
             break;
         }
-        if (pd->listings && pd->listings->count > 0) {
-            fprintf(stdout, "Collected listings: %zu\n", pd->listings->count);
+        if (private_data->listings && private_data->listings->count > 0) {
+            fprintf(stdout, "Collected listings: %zu\n", private_data->listings->count);
         }
         retv = RELOAD_DIALOG;
         if (response)
@@ -143,48 +146,48 @@ static ModeMode rofi_reddit_mode_result(Mode* sw, int mretv, char** input, unsig
     return retv;
 }
 
-static void rofi_reddit_mode_destroy(Mode* sw) {
-    RofiRedditModePrivateData* pd = (RofiRedditModePrivateData*)mode_get_private_data(sw);
-    if (pd != NULL) {
+static void rofi_reddit_mode_destroy(Mode* mode) {
+    RofiRedditModePrivateData* private_data = (RofiRedditModePrivateData*)mode_get_private_data(mode);
+    if (private_data != NULL) {
         fprintf(stdout, "Destroying Rofi Reddit Mode.\n");
-        free_reddit_access_token(pd->token);
-        free_reddit_app(pd->app);
-        free_listings(pd->listings);
-        free(pd->selected_subreddit);
-        g_free(pd);
-        mode_set_private_data(sw, NULL);
+        free_reddit_access_token(private_data->token);
+        free_reddit_app(private_data->app);
+        free_listings(private_data->listings);
+        free(private_data->selected_subreddit);
+        g_free(private_data);
+        mode_set_private_data(mode, NULL);
     }
 }
 
-static char* get_display_value(const Mode* sw, unsigned int selected_line, G_GNUC_UNUSED int* state,
+static char* get_display_value(const Mode* mode, unsigned int selected_line, G_GNUC_UNUSED int* state,
                                G_GNUC_UNUSED GList** attr_list, int get_entry) {
-    RofiRedditModePrivateData* pd = (RofiRedditModePrivateData*)mode_get_private_data(sw);
-    if (!pd->listings) {
+    RofiRedditModePrivateData* private_data = (RofiRedditModePrivateData*)mode_get_private_data(mode);
+    if (!private_data->listings) {
         return g_strdup("OOPS!"); // TODO: implement history of subreddits
     }
-    if (selected_line >= pd->listings->count) {
+    if (selected_line >= private_data->listings->count) {
         fprintf(stderr, "Selected line out of range.\n");
         return NULL;
     }
-    return g_strdup_printf("%s", pd->listings->items[selected_line].title);
+    return g_strdup_printf("%s", private_data->listings->items[selected_line].title);
 }
 
 static int rofi_reddit_token_match(const Mode* sw, rofi_int_matcher** tokens, unsigned int index) {
     return true;
 }
 
-static char* get_message(const Mode* sw) {
-    RofiRedditModePrivateData* pd = (RofiRedditModePrivateData*)mode_get_private_data(sw);
+static char* get_message(const Mode* mode) {
+    RofiRedditModePrivateData* private_data = (RofiRedditModePrivateData*)mode_get_private_data(mode);
     char* message = NULL;
-    switch (pd->subreddit_access) {
+    switch (private_data->subreddit_access) {
     case SUBREDDIT_ACCESS_UNINITIALIZED:
         message = "Type a subreddit to fetch threads for!";
         break;
     case SUBREDDIT_ACCESS_OK:
-        if (pd->listings && pd->listings->count > 0) {
+        if (private_data->listings && private_data->listings->count > 0) {
             message = g_strdup_printf("Found %zu threads for subreddit '%s'. Now select a thread "
                                       "to open in your browser!",
-                                      pd->listings->count, pd->selected_subreddit);
+                                      private_data->listings->count, private_data->selected_subreddit);
         } else {
             message = "No threads available on this subreddit. Type another subreddit to fetch "
                       "threads for!";
