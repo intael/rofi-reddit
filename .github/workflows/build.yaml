@@ -16,3 +16,5 @@ jobs:
     - uses: BSFishy/meson-build@v1.0.3
       with:
         action: test
+        meson-version: 1.8.3
+        ninja-version: 1.12.1
