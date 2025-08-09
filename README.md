@@ -4,6 +4,8 @@
 
 This is a [rofi](github.com/DaveDavenport/rofi) plugin that allows you to browse Reddit threads from rofi. It uses the [Reddit API](https://www.reddit.com/dev/api/) to fetch the threads and display them in a rofi menu.
 
+![demo](./docs/demo.gif)
+
 Run rofi like:
 
 ```bash
