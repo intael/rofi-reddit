@@ -11,11 +11,15 @@ curl_wrappers_cmock_config_path = mocks_dir / 'curl_wrappers_cmock_config.yaml'
 
 generate_mocks_script = meson.project_source_root() / 'generate_mocks.sh'
 
-curl_include = libcurl_dependency.get_variable(pkgconfig: 'includedir', default_value: 'subprojects/curl-8.10.1/include') / 'curl'
+curl_include = libcurl_dependency.get_variable(
+  pkgconfig: 'includedir',
+  default_value: meson.project_source_root() / 'subprojects' / 'curl-8.10.1' / 'include',
+)
+message('Curl include directory: ', curl_include)
 curl_easy_mocks = run_command(
   generate_mocks_script,
   curl_cmock_config_path,
-  curl_include / 'easy.h',
+  curl_include / 'curl' / 'easy.h',
   mocks_dir / 'curl',
   ruby_bin,
   'curl',
