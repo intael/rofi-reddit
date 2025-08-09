@@ -46,7 +46,7 @@ message('Mock sources to build: ', mock_sources)
 mocks = static_library(
   'mocks',
   mock_sources,
-  include_directories: ['mocks', project_inc],
+  include_directories: ['mocks', project_inc, curl_include],
   dependencies: [cmock_dep, unity_dep, jansson_dependency],
 )
 
@@ -69,7 +69,7 @@ test(
   workdir: meson.current_source_dir(),
 )
 
-message('Config file path: ', config_file)
+message('Expected config file path: ', config_file)
 
 if fs.exists(config_file)
   integration_test_access_token_exec = executable(
