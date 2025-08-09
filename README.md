@@ -20,18 +20,18 @@ You need a C compilation toolchain (a C compiler like `clang` or `gcc`, `meson` 
 
 You will also need development headers for rofi. Depending on your distribution these may be included in different packages:
 
-    Arch Linux, Gentoo: included with rofi and meson
-    OpenSUSE: zypper in rofi rofi-devel meson
-    Debian: apt install rofi-dev meson
-    Ubuntu: apt install rofi-dev meson
-    Solus: eopkg it rofi-devel
-    CentOS: Install meson (find rofi-devel headers yourself)
-    Fedora: dnf install meson libtool cairo-devel rofi-devel
-    VoidLinux: xbps-install -S rofi-devel meson libtool
-    Others: look it up :)
+- Arch Linux, Gentoo: included with `rofi` and `meson`
+- OpenSUSE: `zypper in rofi rofi-devel meson`
+- Debian: `apt install rofi-dev meson`
+- Ubuntu: `apt install rofi-dev meson`
+- Solus: `eopkg it rofi-devel`
+- CentOS: Install `meson` (find `rofi-devel` headers yourself)
+- Fedora: `dnf install meson libtool cairo-devel rofi-devel`
+- VoidLinux: `xbps-install -S rofi-devel meson libtool`
+- Others: look it up :)
 
 
-rofi-reddit uses meson as a build system:
+`rofi-reddit` uses meson as a build system:
 
 ```shell
 git clone https://github.com/intael/rofi-reddit.git
