@@ -16,7 +16,7 @@ rofi -show rofi-reddit -modi rofi-reddit
 
 ### From source
 
-You need a C compilation toolchain (a C compiler like `clang` or `gcc`, `meson` and `pkg-config`) and `rofi`. The rest of the dependencies will be resolved by meson.
+You need a C compilation toolchain (a C compiler like `clang` or `gcc`, `meson` and `pkg-config`), `libcurl` and `rofi`. The rest of the dependencies will be resolved by meson.
 
 You will also need development headers for rofi. Depending on your distribution these may be included in different packages:
 

@@ -16,7 +16,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y rofi-dev curl
+        sudo apt-get install -y rofi-dev libcurl4t64
     - name: Set up Ruby 2.7 for the tests
       uses: ruby/setup-ruby@v1
       with:
