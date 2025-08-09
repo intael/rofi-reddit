@@ -50,8 +50,8 @@ message('Mock sources to build: ', mock_sources)
 mocks = static_library(
   'mocks',
   mock_sources,
-  include_directories: ['mocks', project_inc, curl_include],
-  dependencies: [cmock_dep, unity_dep, jansson_dependency],
+  include_directories: ['mocks', project_inc],
+  dependencies: [cmock_dep, unity_dep, jansson_dependency, libcurl_dependency],
 )
 
 test_env = ['LC_ALL=C']
