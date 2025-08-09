@@ -10,9 +10,9 @@ jobs:
       matrix:
         compiler: [clang, gcc]
 
-steps:
-- uses: actions/checkout@v2
-- uses: actions/setup-python@v1
-- uses: BSFishy/meson-build@v1.0.3
-  with:
-    action: test
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v1
+    - uses: BSFishy/meson-build@v1.0.3
+      with:
+        action: test
