@@ -35,7 +35,12 @@ curl_wrapper_mocks = run_command(
 
 curl_easy_mock_sources = curl_easy_mocks.stdout().split('\n')[1].split(' ')
 curl_wrappers_easy_mock_sources = curl_wrapper_mocks.stdout().split('\n')[1].split(' ')
-mock_sources = curl_easy_mock_sources + curl_wrappers_easy_mock_sources
+mock_sources = []
+foreach x : curl_easy_mock_sources + curl_wrappers_easy_mock_sources
+  if x != ''
+    mock_sources += x
+  endif
+endforeach
 message('Mock sources to build: ', mock_sources)
 
 mocks = static_library(
