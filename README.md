@@ -4,6 +4,8 @@
 
 This is a [rofi](github.com/DaveDavenport/rofi) plugin that allows you to browse Reddit threads from rofi. It uses the [Reddit API](https://www.reddit.com/dev/api/) to fetch the threads and display them in a rofi menu.
 
+![demo](./docs/demo.gif)
+
 Run rofi like:
 
 ```bash
@@ -14,7 +16,7 @@ rofi -show rofi-reddit -modi rofi-reddit
 
 ### From source
 
-You need a C compilation toolchain (a C compiler like `clang` or `gcc`, `meson` and `pkg-config`) and `rofi`. The rest of the dependencies will be resolved by meson.
+You need a C compilation toolchain (a C compiler like `clang` or `gcc`, `meson` and `pkg-config`), `libcurl` and `rofi`. The rest of the dependencies will be resolved by meson.
 
 You will also need development headers for rofi. Depending on your distribution these may be included in different packages:
 

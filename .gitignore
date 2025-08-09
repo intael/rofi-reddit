@@ -3,6 +3,7 @@ build/
 src/.deps/
 compile_commands.json
 
+subprojects/packagecache/
 subprojects/tomlc17/
 subprojects/CMock/
 subprojects/jansson-*/

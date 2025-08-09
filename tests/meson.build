@@ -11,11 +11,15 @@ curl_wrappers_cmock_config_path = mocks_dir / 'curl_wrappers_cmock_config.yaml'
 
 generate_mocks_script = meson.project_source_root() / 'generate_mocks.sh'
 
-curl_include = libcurl_dependency.get_variable(pkgconfig: 'includedir') / 'curl'
+curl_include = libcurl_dependency.get_variable(
+  pkgconfig: 'includedir',
+  default_value: meson.project_source_root() / 'subprojects' / 'curl-8.10.1' / 'include',
+)
+message('Curl include directory: ', curl_include)
 curl_easy_mocks = run_command(
   generate_mocks_script,
   curl_cmock_config_path,
-  curl_include / 'easy.h',
+  curl_include / 'curl' / 'easy.h',
   mocks_dir / 'curl',
   ruby_bin,
   'curl',
@@ -35,14 +39,19 @@ curl_wrapper_mocks = run_command(
 
 curl_easy_mock_sources = curl_easy_mocks.stdout().split('\n')[1].split(' ')
 curl_wrappers_easy_mock_sources = curl_wrapper_mocks.stdout().split('\n')[1].split(' ')
-mock_sources = curl_easy_mock_sources + curl_wrappers_easy_mock_sources
+mock_sources = []
+foreach x : curl_easy_mock_sources + curl_wrappers_easy_mock_sources
+  if x != ''
+    mock_sources += x
+  endif
+endforeach
 message('Mock sources to build: ', mock_sources)
 
 mocks = static_library(
   'mocks',
   mock_sources,
   include_directories: ['mocks', project_inc],
-  dependencies: [cmock_dep, unity_dep, jansson_dependency],
+  dependencies: [cmock_dep, unity_dep, jansson_dependency, libcurl_dependency],
 )
 
 test_env = ['LC_ALL=C']
@@ -64,7 +73,7 @@ test(
   workdir: meson.current_source_dir(),
 )
 
-message('Config file path: ', config_file)
+message('Expected config file path: ', config_file)
 
 if fs.exists(config_file)
   integration_test_access_token_exec = executable(
