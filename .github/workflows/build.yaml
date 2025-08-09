@@ -16,7 +16,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y rofi-dev
+        sudo apt-get install -y rofi-dev libcurl4-openssl-dev
     - name: Set up Ruby 2.7 for the tests
       uses: ruby/setup-ruby@v1
       with:
