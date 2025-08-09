@@ -2,6 +2,7 @@
 
 **Browse reddit threads from rofi!**
 
+This is a [rofi](github.com/DaveDavenport/rofi) plugin that allows you to browse Reddit threads from rofi. It uses the [Reddit API](https://www.reddit.com/dev/api/) to fetch the threads and display them in a rofi menu.
 
 Run rofi like:
 
@@ -30,7 +31,7 @@ You will also need development headers for rofi. Depending on your distribution 
 
 rofi-reddit uses meson as a build system:
 
-```bash
+```shell
 git clone https://github.com/intael/rofi-reddit.git
 cd rofi-reddit/
 meson setup build
@@ -71,4 +72,13 @@ Request with auth bearer
 curl --request GET \
   --url https://oauth.reddit.com/r/libertarian/hot \
   --header 'Authorization: Bearer <access-token>'
-`
+```
+
+## Development
+
+Run the tests:
+```shell
+meson test -C build
+```
+
+
