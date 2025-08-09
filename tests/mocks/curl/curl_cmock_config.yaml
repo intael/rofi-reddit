@@ -1,0 +1,14 @@
+:cmock:
+  :verbosity: 3
+  :subdir: curl
+  :includes: [curl/curl.h]
+  :mock_prefix: mock_
+  :mock_path: build/mocks
+  :plugins:
+    - :callback
+    - :ignore
+    - :expect_any_args
+    - :return_thru_ptr
+  :attributes:
+    - CURL_EXTERN
+  :strippables: ['(?:curl_easy_init\s*\(+.*?\)+)', '(?:curl_easy_setopt\s*\(+.*?\)+)', '(?:curl_easy_getinfo\s*\(+.*?\)+)']

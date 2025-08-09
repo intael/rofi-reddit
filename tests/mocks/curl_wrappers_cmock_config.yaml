@@ -1,0 +1,8 @@
+:cmock:
+  :verbosity: 3
+  :mock_prefix: mock_
+  :mock_path: build/mocks
+  :plugins:
+    - ignore
+  :attributes:
+    - CURL_EXTERN
