@@ -121,5 +121,6 @@ int main(void) {
     RUN_TEST(test_no_title_key);
     RUN_TEST(test_nullable_keys_are_missing);
     RUN_TEST(test_permalink_fallsback_to_url);
+    RUN_TEST(test_permalink_and_url_missing);
     return UNITY_END();
 }
