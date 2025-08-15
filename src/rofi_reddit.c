@@ -90,11 +90,10 @@ static ModeMode rofi_reddit_mode_result(Mode* mode, int mretv, char** input, uns
         if (!private_data->listings || selected_line >= private_data->listings->count)
             return MODE_EXIT;
         char* url = private_data->listings->items[selected_line].url;
-        char* xdg_command = "xdg-open";
-        char cmd[strlen(xdg_command) + strlen(url) + 4];
-        snprintf(cmd, sizeof(cmd), "%s '%s' &", xdg_command, url);
-        system(cmd);
-        retv = MODE_EXIT;
+        char* cmdline = g_strdup_printf("xdg-open '%s'", url);
+        g_spawn_command_line_async(cmdline, NULL);
+        g_free(cmdline);
+        return MODE_EXIT;
     } else if (mretv & MENU_PREVIOUS) {
         retv = PREVIOUS_DIALOG;
     } else if ((mretv & MENU_CUSTOM_INPUT)) {

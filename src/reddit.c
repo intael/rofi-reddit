@@ -111,7 +111,7 @@ RedditApp* new_reddit_app(struct rofi_reddit_cfg* config) {
     app->http_client = curl_easy_init();
     if (!app->http_client) {
         fprintf(stderr, "Failed to initialize CURL.\n");
-        free(app);
+        free_reddit_app(app);
         return NULL;
     }
     return app;
@@ -165,18 +165,14 @@ static RedditAccessToken* deserialize_access_token(const struct response_buffer*
     return NULL;
 }
 
-static const struct listing* deserialize_listing(json_t* listing_json, struct listing* deserialize_to, size_t index) {
+void deserialize_listing(json_t* listing_json, struct listing* deserialize_to, size_t index) {
     json_t* data = json_object_get(listing_json, "data");
-    if (!data || !json_is_object(data)) {
+    if (!data || !json_is_object(data) || !json_string_value(json_object_get(data, "title"))) {
         fprintf(stderr, "No data found for listing.\n");
-        return NULL;
-    }
-    const char* title_val = json_string_value(json_object_get(data, "title"));
-    if (!title_val) {
-        return NULL;
+        return;
     }
     struct listing* item = deserialize_to + index;
-    item->title = strdup(title_val);
+    item->title = strdup(json_string_value(json_object_get(data, "title")));
 
     const char* selftext_val = json_string_value(json_object_get(data, "selftext"));
     item->selftext = selftext_val ? strdup(selftext_val) : NULL;
@@ -185,15 +181,7 @@ static const struct listing* deserialize_listing(json_t* listing_json, struct li
     item->ups = (ups_json && json_is_integer(ups_json)) ? (uint32_t)json_integer_value(ups_json) : 0;
 
     const char* permalink_val = json_string_value(json_object_get(data, "permalink"));
-    const char* url_val = NULL;
-    const char* path_val = NULL;
-
-    if (permalink_val) {
-        path_val = permalink_val;
-    } else {
-        url_val = json_string_value(json_object_get(data, "url"));
-        path_val = url_val;
-    }
+    const char* path_val = permalink_val ? permalink_val : json_string_value(json_object_get(data, "url"));
 
     item->url = NULL;
     if (path_val) {
@@ -204,7 +192,6 @@ static const struct listing* deserialize_listing(json_t* listing_json, struct li
     } else {
         fprintf(stderr, "No URL or permalink found for listing.\n");
     }
-    return item;
 }
 
 struct listings* deserialize_listings(const struct response_buffer* resp) {

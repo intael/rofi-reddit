@@ -61,6 +61,7 @@ struct listings {
 };
 
 struct listings* deserialize_listings(const struct response_buffer* resp);
+void deserialize_listing(json_t* listing_json, struct listing* deserialize_to, size_t index);
 
 void free_listings(const struct listings* listings);
 
