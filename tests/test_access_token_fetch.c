@@ -21,7 +21,7 @@ void tearDown(void) {
 // but CMock seems unable to mock it. So in the meanwhile we're marking that as non-mockable to CMock (see strippables
 // in CMock's curl config). Would be good to find another way.
 
-void test_fetch_reddit_access_token_happy_path(void) {
+void test_happy_path(void) {
     new_response_buffer_ExpectAndReturn(some_response);
 
     curl_easy_reset_Expect(app->http_client);
@@ -53,7 +53,7 @@ void test_fetch_reddit_access_token_non_200_response_status(void) {
 
 int main(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_fetch_reddit_access_token_happy_path);
+    RUN_TEST(test_happy_path);
     RUN_TEST(test_fetch_reddit_access_token_non_200_response_status);
     return UNITY_END();
 }

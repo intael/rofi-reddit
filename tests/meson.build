@@ -73,6 +73,22 @@ test(
   workdir: meson.current_source_dir(),
 )
 
+unit_test_deserialize_listing_exec = executable(
+  'unit-test-deserialize-listing',
+  ['test_deserialize_listing.c'],
+  objects: rofi_reddit_shared_lib.extract_objects('reddit.c', 'memory.c', 'curl_wrappers.c'),
+  include_directories: [project_inc],
+  dependencies: [unity_dep] + deps,
+)
+
+test(
+  'unit_test_deserialize_listing',
+  unit_test_deserialize_listing_exec,
+  env: test_env,
+  protocol: 'exitcode',
+  workdir: meson.current_source_dir(),
+)
+
 message('Expected config file path: ', config_file)
 
 if fs.exists(config_file)
