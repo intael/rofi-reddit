@@ -217,7 +217,7 @@ static char* get_message(const Mode* mode) {
 
 Mode mode = {
     .abi_version = ABI_VERSION,
-    .name = "rofi-reddit",
+    .name = "reddit",
     .cfg_name_key = "display-rofi-reddit",
     ._init = rofi_reddit_mode_init,
     ._get_num_entries = rofi_reddit_mode_get_num_entries,
