@@ -14,7 +14,7 @@ elif host_machine.system() == 'linux'
   link_args = ['-Wl,--unresolved-symbols=ignore-all']
 endif
 
-rofi_reddit_shared_lib = shared_library(
+rofi_reddit_shared_lib = shared_module(
   meson.project_name(),
   main_sources,
   dependencies: deps,

@@ -45,7 +45,7 @@ typedef struct {
 } RedditAccessToken;
 
 const struct reddit_api_response* fetch_reddit_access_token_from_api(const RedditApp* app);
-RedditAccessToken* fetch_and_cache_token(const RedditApp* app);
+RedditAccessToken* fetch_and_cache_token(RedditApp* app);
 
 struct listing {
     char* title;
@@ -68,7 +68,7 @@ void free_listings(const struct listings* listings);
 const struct reddit_api_response* fetch_hot_listings(const RedditApp* app, const RedditAccessToken* token,
                                                      const char* subreddit);
 
-const RedditAccessToken* new_reddit_access_token(const RedditApp* app);
+RedditAccessToken* new_reddit_access_token(RedditApp* app);
 
 void free_reddit_access_token(const RedditAccessToken* token);
 

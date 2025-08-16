@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "curl_wrappers.h"
@@ -29,7 +30,10 @@ static int rofi_reddit_mode_init(Mode* mode) {
         RofiRedditModePrivateData* private_data = g_malloc0(sizeof(*private_data));
         mode_set_private_data(mode, (void*)private_data);
         private_data->app = app;
-        private_data->token = new_reddit_access_token(app);
+        RedditAccessToken* token = new_reddit_access_token(app);
+        if (!token)
+            exit(EXIT_FAILURE);
+        private_data->token = token;
         private_data->listings = NULL;
         private_data->selected_subreddit = NULL;
         private_data->subreddit_access = SUBREDDIT_ACCESS_UNINITIALIZED;
