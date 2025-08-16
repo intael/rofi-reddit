@@ -24,7 +24,7 @@ plugin_config_dir = home_dir / '.config' / 'rofi-reddit'
 config_file = plugin_config_dir / 'config.toml'
 
 if not fs.exists(config_file)
-  install_data('config.toml', install_dir: plugin_config_dir, install_mode: 'rw------')
+  install_data('config.toml', install_dir: plugin_config_dir, install_mode: 'rw-----')
 endif
 
 subdir('src')
