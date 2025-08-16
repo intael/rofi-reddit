@@ -78,9 +78,9 @@ curl --request GET \
 
 ## Development
 
-Run the tests:
+Run the tests (requires ruby 2.7!):
 ```shell
-meson test -C build
+meson setup build && meson test -C build
 ```
 
 

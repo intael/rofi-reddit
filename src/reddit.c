@@ -262,25 +262,39 @@ const struct reddit_api_response* fetch_reddit_access_token_from_api(const Reddi
     return new_reddit_api_response(buffer, resp_status);
 }
 
-RedditAccessToken* fetch_and_cache_token(const RedditApp* app) {
+RedditAccessToken* fetch_and_cache_token(RedditApp* app) {
     const struct reddit_api_response* response = fetch_reddit_access_token_from_api(app);
     if (response->status_code == HTTP_OK) {
         RedditAccessToken* token = deserialize_access_token(response->response_buffer);
         fprintf(stdout, "Obtained access token from API of size: %zu. Caching to %s\n", strlen(token->token),
                 app->config->paths->access_token_cache_path);
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "w+");
+        if (!CACHE) {
+            fprintf(stderr, "Failed to create or open access token cache file for writing: %s\n",
+                    app->config->paths->access_token_cache_path);
+            free_reddit_api_response(response);
+            free_reddit_access_token(token);
+            free_reddit_app(app);
+            exit(EXIT_FAILURE);
+        }
         fputs(token->token, CACHE);
-        app->config->paths = new_rofi_reddit_paths();
         fclose(CACHE);
+        app->config->paths = new_rofi_reddit_paths();
         return token;
     }
     return NULL;
 }
 
-const RedditAccessToken* new_reddit_access_token(const RedditApp* app) {
-    const RedditAccessToken* reddit_token = NULL;
+RedditAccessToken* new_reddit_access_token(RedditApp* app) {
+    RedditAccessToken* reddit_token = NULL;
     if (app->config->paths->access_token_cache_exists) {
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "r");
+        if (!CACHE) {
+            fprintf(stderr, "Failed to open access token cache file for reading: %s\n",
+                    app->config->paths->access_token_cache_path);
+            free_reddit_app(app);
+            exit(EXIT_FAILURE);
+        }
         char* buffer = malloc(*ACCESS_TOKEN_MAX_SIZE);
         fgets(buffer, *ACCESS_TOKEN_MAX_SIZE, CACHE);
         RedditAccessToken* cached_token = LOG_ERR_MALLOC(RedditAccessToken, 1);
@@ -293,7 +307,7 @@ const RedditAccessToken* new_reddit_access_token(const RedditApp* app) {
         reddit_token = fetch_and_cache_token(app);
     }
     if (!reddit_token)
-        fprintf(stderr, "Failed to obtain Reddit access token.\n");
+        perror("Failed to obtain Reddit access token.\n");
     return reddit_token;
 }
 
