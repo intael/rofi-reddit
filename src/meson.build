@@ -15,7 +15,7 @@ elif host_machine.system() == 'linux'
 endif
 
 rofi_reddit_shared_lib = shared_module(
-  meson.project_name(),
+  'reddit',
   main_sources,
   dependencies: deps,
   install_dir: pluginsdir,

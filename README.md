@@ -9,7 +9,7 @@ This is a [rofi](github.com/DaveDavenport/rofi) plugin that allows you to browse
 Run rofi like:
 
 ```bash
-rofi -show rofi-reddit -modi rofi-reddit
+rofi -show reddit -modi reddit
 ```
 
 ## Installation 
@@ -34,7 +34,7 @@ You will also need development headers for rofi. Depending on your distribution 
 `rofi-reddit` uses meson as a build system:
 
 ```shell
-git clone https://github.com/intael/rofi-reddit.git
+git clone https://github.com/valdebrutal/rofi-reddit.git
 cd rofi-reddit/
 meson setup build
 meson compile -C build/
@@ -58,7 +58,7 @@ To create a Reddit application, follow these steps:
 
 ### Troubleshooting your Reddit App
 
-You can verify that your reddit app works fine by trying to get an access token and then using it.
+You can verify that your reddit app works fine by trying to get an access token:
 ```shell
 curl --request POST \
   --url https://www.reddit.com/api/v1/access_token \
@@ -69,7 +69,7 @@ curl --request POST \
   --data grant_type=client_credentials
 ```
 
-Request with auth bearer
+...and then trying to use it:
 ```shell
 curl --request GET \
   --url https://oauth.reddit.com/r/libertarian/hot \
