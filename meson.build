@@ -1,4 +1,4 @@
-project('rofi-reddit', 'c', version: '0.1.0')
+project('rofi-reddit', 'c', version: '0.1.1',  meson_version: '>=1.1')
 
 add_project_arguments('-DUNITY_OUTPUT_COLOR=1', language: 'c')
 
@@ -28,4 +28,6 @@ if not fs.exists(config_file)
 endif
 
 subdir('src')
-subdir('tests')
+if get_option('tests')
+  subdir('tests')
+endif
