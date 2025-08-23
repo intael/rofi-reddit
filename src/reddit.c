@@ -320,7 +320,7 @@ RedditAccessToken* fetch_and_cache_token(RedditApp* app) {
                 app->config->paths->access_token_cache_path);
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "w+");
         if (!CACHE) {
-            fprintf(stderr, "Failed to create or open access token cache file for writing at: %s\n",
+            fprintf(stderr, "Failed to create or open access token cache file at: %s\n",
                     app->config->paths->access_token_cache_path);
             free_reddit_api_response(response);
             free_reddit_access_token(token);
