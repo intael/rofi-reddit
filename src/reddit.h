@@ -18,13 +18,13 @@ struct rofi_reddit_paths* new_rofi_reddit_paths();
 void free_rofi_reddit_paths(const struct rofi_reddit_paths* paths);
 
 struct app_auth {
-    const char* client_name;
-    const char* client_id;
-    const char* client_secret;
+    char* client_name;
+    char* client_id;
+    char* client_secret;
 };
 
 struct rofi_reddit_cfg {
-    const struct app_auth* auth;
+    struct app_auth* auth;
     struct rofi_reddit_paths* paths;
 };
 
