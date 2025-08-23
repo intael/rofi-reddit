@@ -23,49 +23,85 @@ static const char* const REDDIT_API_HOST = "oauth.reddit.com";
 
 static const uint16_t* const ACCESS_TOKEN_MAX_SIZE = &(const uint16_t){1024};
 
-static const struct app_auth* new_app_auth(toml_result_t toml) {
-    struct app_auth* auth = (struct app_auth*)LOG_ERR_MALLOC(struct app_auth, 2);
+static bool is_auth_filled(const struct app_auth* auth) {
+    if (!auth || !auth->client_id || !auth->client_secret)
+        return false;
+    // client_name is not critical for auth purposes
+    return auth->client_id[0] != '\0' && auth->client_secret[0] != '\0';
+}
+
+static struct app_auth* new_app_auth(toml_result_t toml) {
+    struct app_auth* auth = (struct app_auth*)LOG_ERR_MALLOC(struct app_auth, 1);
     auth->client_name = strdup(toml_seek(toml.toptab, "reddit.client_name").u.s);
     auth->client_id = strdup(toml_seek(toml.toptab, "reddit.client_id").u.s);
     auth->client_secret = strdup(toml_seek(toml.toptab, "reddit.client_secret").u.s);
     return auth;
 }
 
-static void free_app_auth(const struct app_auth* auth) {
+static void free_app_auth(struct app_auth* auth) {
     if (!auth)
         return;
-    free((void*)auth->client_name);
-    free((void*)auth->client_id);
-    free((void*)auth->client_secret);
-    free((void*)auth);
+    free(auth->client_name);
+    free(auth->client_id);
+    free(auth->client_secret);
+    free(auth);
+}
+
+static int create_dir_if_not_exists(const char* path) {
+    struct stat st = {0};
+    if (stat(path, &st) == -1) {
+        if (mkdir(path, S_IRWXU) != 0) {
+            return errno;
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        return ENOTDIR;
+    }
+    return 0;
 }
 
 struct rofi_reddit_paths* new_rofi_reddit_paths() {
-    char* home_path = getenv("HOME");
-    if (!home_path) {
-        home_path = getpwuid(getuid())->pw_dir;
-    }
-    char* plugin_config_dir = g_build_filename(home_path, ".config", "rofi-reddit", NULL);
-    if (access(plugin_config_dir, F_OK) != 0) {
-        fprintf(stderr, "Rofi Reddit config directory does not exist. Aborting.\n");
-        free(plugin_config_dir);
+    char* plugin_cfg_dir = g_build_filename("/", "usr", "share", "rofi-reddit", NULL);
+    struct stat cfg_dir_stat;
+    if (stat(plugin_cfg_dir, &cfg_dir_stat) != 0 || !S_ISDIR(cfg_dir_stat.st_mode)) {
+        fprintf(stderr, "Rofi Reddit config directory does not exist. This is a symptom of the installing process "
+                        "having gone wrong. Try reinstalling. Aborting.\n");
+        free(plugin_cfg_dir);
         exit(EXIT_FAILURE);
     }
-    char* config_file_path = g_build_filename(plugin_config_dir, "config.toml", NULL);
-    if (access(config_file_path, F_OK) != 0) {
-        fprintf(stderr, "Rofi Reddit config file does not exist. Aborting.\n");
-        free(plugin_config_dir);
+    char* config_file_path = g_build_filename(plugin_cfg_dir, "config.toml", NULL);
+    free(plugin_cfg_dir);
+    if (access(config_file_path, F_OK) != 0 || access(config_file_path, R_OK) != 0) {
+        fprintf(
+            stderr,
+            "Rofi Reddit config file does not exist or lacks read permissions at %s. Check permissions. Aborting.\n",
+            config_file_path);
         free(config_file_path);
         exit(EXIT_FAILURE);
     }
-    struct rofi_reddit_paths* paths = (struct rofi_reddit_paths*)malloc(sizeof(struct rofi_reddit_paths));
+    struct rofi_reddit_paths* paths = LOG_ERR_MALLOC(struct rofi_reddit_paths, 1);
     paths->config_path = config_file_path;
-    paths->access_token_cache_path = g_build_filename(plugin_config_dir, "access_token", NULL);
-    struct stat st;
-    // file exists, process has read permissions and file is nonempty
-    paths->access_token_cache_exists = stat(paths->access_token_cache_path, &st) == 0 &&
-                                       access(paths->access_token_cache_path, R_OK) == 0 && st.st_size > 0;
-    free(plugin_config_dir);
+    char* xdg_cache = getenv("XDG_CACHE_HOME");
+    char* user_cache_dir =
+        xdg_cache && xdg_cache[0] != '\0' ? xdg_cache : g_build_filename(getenv("HOME"), ".cache", NULL);
+    char* plugin_cache_dir = g_build_filename(user_cache_dir, "rofi-reddit", NULL);
+    free(user_cache_dir);
+    if (create_dir_if_not_exists(plugin_cache_dir) != 0) {
+        fprintf(stderr,
+                "Failed to create or access cache directory at %s. Check permissions. This will lead to more REddit "
+                "API calls than necessary.\n",
+                plugin_cache_dir);
+        free(plugin_cache_dir);
+        free_rofi_reddit_paths(paths);
+        exit(EXIT_FAILURE);
+    }
+    paths->access_token_cache_path = g_build_filename(plugin_cache_dir, "access_token", NULL);
+    struct stat access_token_cache_stat;
+    // access token exists, process has read permissions and file is nonempty
+    paths->access_token_cache_exists = stat(paths->access_token_cache_path, &access_token_cache_stat) == 0 &&
+                                       access(paths->access_token_cache_path, R_OK) == 0 && cfg_dir_stat.st_size > 0;
+
+    free(plugin_cache_dir);
+    free(xdg_cache);
     return paths;
 }
 
@@ -78,19 +114,32 @@ void free_rofi_reddit_paths(const struct rofi_reddit_paths* paths) {
 }
 
 struct rofi_reddit_cfg* new_rofi_reddit_cfg(struct rofi_reddit_paths* paths) {
-    struct rofi_reddit_cfg* cfg = (struct rofi_reddit_cfg*)LOG_ERR_MALLOC(struct rofi_reddit_cfg, 2);
-    if (access(paths->config_path, R_OK) != 0) {
-        fprintf(stderr, "Could not read rofi-reddit config file due to missing read permissions at %s\n",
-                paths->config_path);
+    if (access(paths->config_path, F_OK) != 0 || access(paths->config_path, R_OK) != 0) {
+        fprintf(
+            stderr,
+            "Could not read rofi-reddit config file at %s. Either it doesn't exist or permissions are insufficient.\n",
+            paths->config_path);
         return NULL;
     }
+    struct rofi_reddit_cfg* cfg = (struct rofi_reddit_cfg*)LOG_ERR_MALLOC(struct rofi_reddit_cfg, 1);
     toml_result_t parsed_toml = toml_parse_file_ex(paths->config_path);
     if (!parsed_toml.ok) {
         fprintf(stderr, "Failed to parse config file: %s\n", parsed_toml.errmsg);
-        free(cfg);
+        free_rofi_reddit_cfg(cfg);
         return NULL;
     }
-    const struct app_auth* auth = new_app_auth(parsed_toml);
+    struct app_auth* auth = new_app_auth(parsed_toml);
+    if (!is_auth_filled(auth)) {
+        fprintf(stderr, "%s\n", paths->config_path);
+        fprintf(
+            stderr,
+            "Rofi Reddit config file is missing critical fields. Please fill in client_id and client_secret at %s\n",
+            paths->config_path);
+        free_app_auth(auth);
+        free_rofi_reddit_cfg(cfg);
+        toml_free(parsed_toml);
+        return NULL;
+    }
     toml_free(parsed_toml);
     cfg->auth = auth;
     cfg->paths = paths;
@@ -100,8 +149,10 @@ struct rofi_reddit_cfg* new_rofi_reddit_cfg(struct rofi_reddit_paths* paths) {
 void free_rofi_reddit_cfg(const struct rofi_reddit_cfg* cfg) {
     if (!cfg)
         return;
-    free_app_auth(cfg->auth);
-    free_rofi_reddit_paths(cfg->paths);
+    if (!cfg->paths)
+        free_rofi_reddit_paths(cfg->paths);
+    if (!cfg->auth)
+        free_app_auth(cfg->auth);
     free((void*)cfg);
 }
 
@@ -270,7 +321,7 @@ RedditAccessToken* fetch_and_cache_token(RedditApp* app) {
                 app->config->paths->access_token_cache_path);
         FILE* const CACHE = fopen(app->config->paths->access_token_cache_path, "w+");
         if (!CACHE) {
-            fprintf(stderr, "Failed to create or open access token cache file for writing: %s\n",
+            fprintf(stderr, "Failed to create or open access token cache file for writing at: %s\n",
                     app->config->paths->access_token_cache_path);
             free_reddit_api_response(response);
             free_reddit_access_token(token);

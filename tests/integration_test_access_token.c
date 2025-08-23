@@ -13,11 +13,11 @@ void tearDown(void) {
 
 void test_hot_listings_fetch_end_to_end(void) {
     struct rofi_reddit_paths* paths = new_rofi_reddit_paths();
-    if (access(paths->config_path, F_OK) == -1 || access(paths->config_path, R_OK) == -1) {
-        fprintf(stdout, "Config file not found or not readable. Run the setup script to create it.\n");
-        TEST_FAIL_MESSAGE("Config file not found.");
-    }
     struct rofi_reddit_cfg* cfg = new_rofi_reddit_cfg(paths);
+    if (!cfg || !cfg->auth->client_id || cfg->auth->client_id[0] == '\0') {
+        free_rofi_reddit_cfg(cfg);
+        TEST_IGNORE_MESSAGE("Rofi Reddit config file is has not been filled. Skipping test.");
+    }
     RedditApp* app = new_reddit_app(cfg);
 
     RedditAccessToken* token = new_reddit_access_token(app);
@@ -25,7 +25,6 @@ void test_hot_listings_fetch_end_to_end(void) {
     if (response->status_code != HTTP_OK) {
         fprintf(stdout, "Access token is invalid or expired. Trying to fetch new one.\n");
         fetch_and_cache_token(app);
-        paths = new_rofi_reddit_paths();
     }
 
     const struct listings* listings = deserialize_listings(response->response_buffer);

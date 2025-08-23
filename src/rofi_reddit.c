@@ -26,6 +26,8 @@ static int rofi_reddit_mode_init(Mode* mode) {
     if (mode_get_private_data(mode) == NULL) {
         struct rofi_reddit_paths* paths = new_rofi_reddit_paths();
         struct rofi_reddit_cfg* config = new_rofi_reddit_cfg(paths);
+        if (!config)
+            exit(EXIT_FAILURE);
         RedditApp* app = new_reddit_app(config);
         RofiRedditModePrivateData* private_data = g_malloc0(sizeof(*private_data));
         mode_set_private_data(mode, (void*)private_data);
