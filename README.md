@@ -46,7 +46,7 @@ You will also need development headers for rofi. Depending on your distribution 
 ```shell
 git clone https://github.com/valdebrutal/rofi-reddit.git
 cd rofi-reddit/
-meson setup build
+meson setup build -Dtests=false
 meson compile -C build/
 meson install -C build
 ```
@@ -61,7 +61,7 @@ To create a Reddit application, follow these steps:
 3. Click on "Create App"
 4. Fill in the required fields making sure to select "script" as the application type:
 ![reddit app creation page](./docs/create-reddit-app.png)
-5. Go to `~/.config/rofi-reddit/config.toml` and fill in the `client_id`, `client_secret` and `client_name` fields. You can find all of these in the application you just created by going to https://www.reddit.com/prefs/apps and clicking "edit" on your application. These are the values for each field:
+5. Having installed `rofi-reddit`, go to `/usr/share/rofi-reddit/config.toml` and fill in the `client_id`, `client_secret` and `client_name` fields. You can find all of these in the application you just created by going to https://www.reddit.com/prefs/apps and clicking "edit" on your application. These are the values for each field:
 
 ![reddit app details page](./docs/reddit-app-details.png)
 
