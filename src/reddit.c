@@ -130,7 +130,6 @@ struct rofi_reddit_cfg* new_rofi_reddit_cfg(struct rofi_reddit_paths* paths) {
     }
     struct app_auth* auth = new_app_auth(parsed_toml);
     if (!is_auth_filled(auth)) {
-        fprintf(stderr, "%s\n", paths->config_path);
         fprintf(
             stderr,
             "Rofi Reddit config file is missing critical fields. Please fill in client_id and client_secret at %s\n",
