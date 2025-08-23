@@ -87,7 +87,7 @@ struct rofi_reddit_paths* new_rofi_reddit_paths() {
     free(user_cache_dir);
     if (create_dir_if_not_exists(plugin_cache_dir) != 0) {
         fprintf(stderr,
-                "Failed to create or access cache directory at %s. Check permissions. This will lead to more REddit "
+                "Failed to create or access cache directory at %s. Check permissions. This will lead to more Reddit "
                 "API calls than necessary.\n",
                 plugin_cache_dir);
         free(plugin_cache_dir);
