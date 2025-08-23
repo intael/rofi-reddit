@@ -346,7 +346,14 @@ RedditAccessToken* new_reddit_access_token(RedditApp* app) {
             exit(EXIT_FAILURE);
         }
         char* buffer = malloc(*ACCESS_TOKEN_MAX_SIZE);
-        fgets(buffer, *ACCESS_TOKEN_MAX_SIZE, CACHE);
+        if (fgets(buffer, *ACCESS_TOKEN_MAX_SIZE, CACHE) == NULL) {
+            fprintf(stderr, "Failed to read access token from cache file: %s\n",
+                    app->config->paths->access_token_cache_path);
+            free(buffer);
+            fclose(CACHE);
+            free_reddit_app(app);
+            exit(EXIT_FAILURE);
+        }
         RedditAccessToken* cached_token = LOG_ERR_MALLOC(RedditAccessToken, 1);
         cached_token->token = buffer;
         reddit_token = cached_token;

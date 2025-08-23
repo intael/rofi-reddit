@@ -14,6 +14,16 @@ rofi -show reddit -modi reddit
 
 ## Installation 
 
+### Archlinux
+
+```shell
+yay -S rofi-reddit
+```
+
+```shell
+paru -S rofi-reddit
+```
+
 ### From source
 
 You need a C compilation toolchain (a C compiler like `clang` or `gcc`, `meson` and `pkg-config`), `libcurl` and `rofi`. The rest of the dependencies will be resolved by meson.
