@@ -16,7 +16,7 @@ void test_hot_listings_fetch_end_to_end(void) {
     struct rofi_reddit_cfg* cfg = new_rofi_reddit_cfg(paths);
     if (!cfg || !cfg->auth->client_id || cfg->auth->client_id[0] == '\0') {
         free_rofi_reddit_cfg(cfg);
-        TEST_IGNORE_MESSAGE("Rofi Reddit config file is has not been filled. Skipping test.");
+        TEST_IGNORE_MESSAGE("Rofi Reddit config file has not been filled. Skipping test.");
     }
     RedditApp* app = new_reddit_app(cfg);
 
